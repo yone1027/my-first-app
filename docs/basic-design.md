@@ -1,9 +1,10 @@
-# 株価ポータル 外部仕様書(草案)
+# 株価ポータル 基本設計書(草案)
 
-- 版: 草案 v0.3(2026-09-26)
+- 版: 草案 v0.4(2026-09-26)
 - 変更履歴
   - v0.2 要件定義書 v0.29(F1-2〜F1-4 を外した)に合わせた
   - v0.3 F1-1(TOPIX の移動平均線)と F1-5(基準日・注文の有効期間)の表示場所を決めた
+  - v0.4 文書名を「外部仕様書」から「基本設計書」に変えた(ファイル名も `external-spec.md` → `basic-design.md`)。中身は変えていない
 - もとにした文書
   - 要件定義書 [docs/requirements.md](requirements.md) v0.30
   - 画面案 https://claude.ai/artifact/18sGE53YeMFoL4ddonf2sr Version 37
