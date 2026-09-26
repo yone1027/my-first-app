@@ -113,3 +113,32 @@ def test_usdjpy_and_wti_say_why_they_are_not_built():
     assert status["mof"]["ok"] is True
     assert status["boj"]["ok"] is False and "not_implemented" in status["boj"]["error"]
     assert status["eia"]["ok"] is False and "EIA_API_KEY" in status["eia"]["error"]
+
+
+def test_the_current_month_csv_is_always_fetched(monkeypatch, tmp_path):
+    """全期間の CSV は前月までしか入っていない。当月は毎回取る(§6.8)。
+
+    初回に全期間だけ取って当月を飛ばすと、今月の週が埋まらない(2026-09-27 に踏んだ)。
+    """
+    from datetime import date as _date
+
+    calls: list[bool] = []
+
+    def fake_fetch(full: bool, cache_dir):
+        calls.append(full)
+        return {_date(2026, 8, 31): 2.943} if full else {_date(2026, 9, 24): 3.073}
+
+    monkeypatch.setattr(mof, "fetch", fake_fetch)
+    monkeypatch.setattr(mof, "load_cache", lambda _d: {})
+
+    class Paths:
+        raw_dir = tmp_path
+
+    class Cfg:
+        paths = Paths()
+
+    weeks = [{"week_end": "2026-09-25", "_days": [_date(2026, 9, 24), _date(2026, 9, 25)]}]
+    rows = indicators.aggregate(Cfg(), weeks, datetime(2026, 9, 26, 13, 0), [], rebuild=False)
+
+    assert calls == [True, False], "全期間のあとに当月も取ること"
+    assert rows == [{"week_end": "2026-09-25", "indicator": "jgb10y", "value": 3.073, "obs_date": "2026-09-24"}]

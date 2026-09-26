@@ -89,10 +89,26 @@ rm -rf "$APP.old"
 
 # ---- 手順 5: launchd ----
 say "launchd に登録します"
+# bootout のあと、launchd の後片付けが終わる前に bootstrap すると
+# "Bootstrap failed: 5: Input/output error" になる(2026-09-27 に踏んだ)。
+# 消えるのを待ってから登録し、失敗したら数回やり直す。
 for label in $LABELS; do
   cp "$APP/deploy/launchd/$label.plist" "$HOME/Library/LaunchAgents/$label.plist"
   launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
-  launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/$label.plist"
+  for _ in {1..20}; do
+    launchctl print "gui/$(id -u)/$label" >/dev/null 2>&1 || break
+    sleep 0.5
+  done
+  loaded=0
+  for _ in {1..5}; do
+    if launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/$label.plist" 2>/dev/null; then
+      loaded=1
+      break
+    fi
+    sleep 1
+  done
+  (( loaded )) || die "$label を launchd に登録できませんでした。次を見てください: launchctl print gui/$(id -u)/$label"
+  say "  $label を登録しました"
 done
 
 # ---- 手順 6: 初回だけ、全期間を集計 ----
