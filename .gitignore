@@ -6,6 +6,7 @@ node_modules/
 
 # 開発用
 .venv/
+.dev/           # 開発用の設定と集計の出力(実機は /Users/yone/StockPortal/)
 __pycache__/
 *.pyc
 .pytest_cache/

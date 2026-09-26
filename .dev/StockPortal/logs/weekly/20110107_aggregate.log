@@ -1,8 +1,0 @@
-開始 2026-09-26T22:55:14+09:00
-コマンド: /Users/yone/Orca/workspaces/my-first-app/develop/.venv/bin/python -m stockportal.batch.aggregate --as-of 2011-01-07
-作業フォルダ: /Users/yone/Orca/workspaces/my-first-app/develop/server
-
-2026-09-26 22:55:14,893 INFO 週の一覧を作ります
-取引カレンダーのキャッシュが読めないため、集計できません
-
-終了 2026-09-26T22:55:14+09:00 状態 failed 終了コード 1
