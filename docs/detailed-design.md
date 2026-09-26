@@ -1,13 +1,14 @@
 # 株価ポータル 詳細設計書(草案)
 
-- 版: 草案 v0.3(2026-09-26)
+- 版: 草案 v0.4(2026-09-26)
 - 変更履歴
   - v0.1 作成
   - v0.2 スプリント1の確定作業(1)。技術スタック(§2)を確定し、この Mac の実測(§2.1)と採用しなかった案(§2.2)を追記。判定ラベルの正本を `verdicts.csv` に確定し実測値に差し替え(§7.1)、売買代金の集計範囲を確定(§6.4)、`period` の既定を `13w` に、業種の太字を上位3と下位3に(§5.2・§5.6)。§12.3 を「確認してほしいこと」から「決定・反映済み」に書き換えた
   - v0.3 スプリント1の確定作業(2)。§12.2 の仮置き13件をすべて確定。土曜の処理中にスリープさせない仕組みを追加(§10.1)。キャッシュの対象を明確化し索引方式の実測値を追記(§5.5)。差分の再計算を設定に外出し(§6.2)。TradingView の URL を実機で検証(§8.7)。設定ファイルに `[aggregate]` を追加(§3.3)
+  - v0.4 設定ファイルに `[theme]` を追加(§3.3)。`GET /api/theme` と設定画面 G-30 の URL を追加(§5.2・§8.1)。色は `lib/theme.ts` で CSS 変数として扱い、ハードコードしない方針にした(§8.4)
 - もとにした文書
-  - 基本設計書 [docs/basic-design.md](basic-design.md) v0.7
-  - 要件定義書 [docs/requirements.md](requirements.md) v0.39
+  - 基本設計書 [docs/basic-design.md](basic-design.md) v0.8
+  - 要件定義書 [docs/requirements.md](requirements.md) v0.40
   - 既存の出力の実物(2026-09-26 に確認): `TechnicalAnalysis/output/screen/20260925/`、`TechnicalAnalysis/output/candidates/20260925/`、`J-Quants/output/selection/picks_20260925.*`、`J-Quants/data/raw/`、`J-Quants/data/panel/`
 - 作成者: yone1027
 - 状態: **草案**。基本設計書の**未決**・**仮置き**は、この文書でもそのまま書く。この文書で新しく決めた値(技術スタック・ファイルの形・API など)も、確定するまでは**仮置き**とする(§12.2 に一覧)。
@@ -181,6 +182,30 @@ step_timeout_minutes = { candidates = 120, weekly_picks = 180, aggregate = 60 }
 exclude_markets = ["0105", "0109"]   # 集計から外す市場区分。TOKYO PRO MARKET と ETF・REIT など(§6.4)
 recompute_weeks = 4                  # 毎週さかのぼって作り直す週数(§6.2)
 
+[theme]
+# 色の既定値(基本設計書 §4.8)。端末ごとの上書きは設定画面 G-30(localStorage)で行う。
+bg           = "#F5F3EE"
+surface      = "#FFFFFF"
+surface_alt  = "#F7F5F0"
+text         = "#1C1B19"
+text_sub     = "#57534A"
+text_muted   = "#6B675E"
+border       = "#E4E1D8"
+border_strong = "#D6D2C7"
+font_family  = '"BIZ UDPGothic", sans-serif'
+# 判定のラベル(背景/文字の組)
+buy_bg   = "#F7E3DC"; buy_fg   = "#B1442A"
+sell_bg  = "#DFE9F2"; sell_fg  = "#2F6690"
+neutral_bg = "#EEECE6"; neutral_fg = "#57534A"
+unknown_bg = "#FFFFFF"; unknown_fg = "#6B675E"
+conflict_bg = "#F0E4EE"; conflict_fg = "#7A4B72"
+# チャートの面(文字ではないので画面案の値のまま)
+up = "#B5452B"; down = "#2F6690"
+# 市場区分
+prime = "#2E4057"; standard = "#3E8E7E"; growth = "#9A5B8F"
+# 主体(海外投資家・個人・投資信託・事業法人・信託銀行・証券会社の自己売買)
+investors = ["#2E4057", "#E0912F", "#3E8E7E", "#9A5B8F", "#8DB3D9", "#C9B37E"]
+
 [schedule]
 delayed_after = "SAT 12:00"     # これを過ぎても前の週のままなら「更新が遅れています」(基本設計書 §4.3)
 
@@ -290,6 +315,7 @@ jquants_fins_per_minute = 60
 | `GET /api/weekly/{date}/picks` | G-22 | 注文の前提、候補、指値の段、参考、検証の限界 |
 | `GET /api/weekly/{date}/candidates` | G-23 | 買い候補の全行 |
 | `GET /api/search?q=...` | ヘッダー | 銘柄の候補(最大10件) |
+| `GET /api/theme` | 全画面 | `config.toml` の `[theme]`(色と書体。基本設計書 §4.8) |
 | `GET /api/health` | (見張り用) | `{"ok": true}` |
 
 - `period` は `13w` / `26w` / `52w`(**既定 `13w`**。2026-09-26 確定)。`scope` は `all` / `prime` / `standard` / `growth`(既定 `all`)。`date` は `YYYY-MM-DD` か `latest`(既定 `latest`)。
@@ -747,6 +773,7 @@ jquants_fins_per_minute = 60
 | `/weekly/verdicts` | `routes/weekly/verdicts/+page.svelte` | G-21 |
 | `/weekly/picks` | `routes/weekly/picks/+page.svelte` | G-22 |
 | `/weekly/candidates` | `routes/weekly/candidates/+page.svelte` | G-23 |
+| `/settings` | `routes/settings/+page.svelte` | G-30(2026-09-26 追加) |
 | 上にない URL | `routes/+error.svelte` | G-90 |
 
 - `adapter-static` の SPA の書き出し(`fallback: 'index.html'`)。サーバーは、ファイルに当たらない URL に `index.html` を返す(§5.1)。
@@ -806,7 +833,10 @@ jquants_fins_per_minute = 60
 | シェアの推移(G-12 (2)) | 線 + 点線 + 網かけ + 薄い棒 | 期間平均は `markLine`、直近の範囲は `markArea`、売買代金は第2の縦軸の薄い棒。縦軸は区分ごとに自動 |
 | 業種のヒートマップ(G-13) | `heatmap` | 値を −30〜+30 に丸めて、`visualMap` の連続の色(青 `#2F6690` 〜 白 〜 赤 `#B5452B`)。行は業種(並べ替え済み)、列は週 |
 
-- 色は `lib/colors.ts` に1か所で持つ(基本設計書 §4.8)。主体の6色も、ここで決める。
+- 色は `lib/theme.ts` に1か所でまとめる(基本設計書 §4.8)。値は**ハードコードしない**。
+  - サーバーは `GET /api/theme` で `config.toml` の `[theme]` を返す。画面は起動時にそれを読み、CSS 変数(`--bg`・`--buy-fg` など)として `:root` に流し込む。
+  - `localStorage` のキー `stockportal.theme` に端末の上書きがあれば、そちらを後から重ねる(設定画面 G-30)。
+  - ECharts の色も、同じ CSS 変数から `getComputedStyle` で読む。チャートの中で16進数を直接書かない。
 - スマホ(768px 未満)では、凡例を下に移し、横軸の目盛りを間引く。チャートの幅は親の幅に合わせ、`ResizeObserver` で描き直す。
 - ヒートマップと判定表は、表の中だけ横に動かせるようにする(`overflow-x: auto` の枠で囲む)。
 
