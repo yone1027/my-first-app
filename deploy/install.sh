@@ -47,7 +47,9 @@ fi
 # 別の版を入れるときは第2引数で渡す(例: deploy/install.sh "$PWD" develop)。
 git -C "$REPO" rev-parse --verify --quiet "$REF" >/dev/null \
   || die "$REF が見つかりません。git fetch してから、もう一度実行してください"
-git -C "$REPO" cat-file -e "$REF:server/pyproject.toml" 2>/dev/null \
+# ${REF} は波括弧が必須。"$REF:server/…" と書くと zsh が :s を置換修飾子として
+# 解釈し、引数が "origin/mainct.toml" のように化ける(2026-09-27 に踏んだ)
+git -C "$REPO" cat-file -e "${REF}:server/pyproject.toml" 2>/dev/null \
   || die "$REF に server/ がありません($(git -C "$REPO" log --oneline -1 "$REF"))。書き出す版を確かめてください"
 
 say "$REF($(git -C "$REPO" log --oneline -1 "$REF"))を $APP に書き出します"
@@ -59,15 +61,7 @@ for needed in server/pyproject.toml web/package.json config/config.example.toml;
   [[ -f "$APP.new/$needed" ]] || die "書き出しに $needed が入っていません"
 done
 
-# ---- 手順 2: ポータルの仮想環境 ----
-say "server で uv sync します"
-(cd "$APP.new/server" && uv sync --quiet)
-
-# ---- 手順 3: 画面を書き出す ----
-say "web で npm ci && npm run build します"
-(cd "$APP.new/web" && npm ci --silent && npm run build --silent)
-
-# ---- 手順 4: 設定ファイル ----
+# ---- 手順 2: 設定ファイル ----
 if [[ ! -f "$ROOT/config.toml" ]]; then
   say "設定ファイルの見本をコピーします($ROOT/config.toml)"
   cp "$APP.new/config/config.example.toml" "$ROOT/config.toml"
@@ -75,12 +69,23 @@ else
   say "設定ファイルはそのまま使います($ROOT/config.toml)"
 fi
 
-# 入れ替え(途中で失敗しても今の版が残る)
+# ---- 手順 3: 入れ替え ----
+# 仮想環境と npm の成果物を作る**前**に入れ替える。
+# `uv sync` が作るコンソールスクリプト(uvicorn など)は shebang に仮想環境の
+# 絶対パスを焼き込むため、あとで app.new → app に移すと動かなくなる
+# (bad interpreter: …/app.new/server/.venv/bin/python。2026-09-27 に踏んだ)。
+say "$APP に入れ替えます"
 rm -rf "$APP.old"
 [[ -d "$APP" ]] && mv "$APP" "$APP.old"
 mv "$APP.new" "$APP"
+trap - EXIT   # ここから先は app.new を触らない
+
+# ---- 手順 4: ポータルの仮想環境と画面 ----
+say "server で uv sync します"
+(cd "$APP/server" && uv sync --quiet)
+say "web で npm ci && npm run build します"
+(cd "$APP/web" && npm ci --silent && npm run build --silent)
 rm -rf "$APP.old"
-trap - EXIT   # ここまで来たら片付けない
 
 # ---- 手順 5: launchd ----
 say "launchd に登録します"
@@ -96,5 +101,23 @@ if [[ ! -f "$ROOT/data/market/manifest.json" ]]; then
   (cd "$APP/server" && STOCKPORTAL_CONFIG=$ROOT/config.toml .venv/bin/python -m stockportal.batch.aggregate --rebuild)
 fi
 
-say "入れ終わりました。http://localhost:8765 で開けます"
-say "既存の com.yone.technicalanalysis.screen には触っていません"
+# ---- 手順 7: 本当に上がったか確かめる ----
+# ここを見ずに「入れ終わりました」と出すと、壊れていても気づけない(2026-09-27 に踏んだ)。
+say "サーバーの応答を確かめます"
+ok=0
+for _ in {1..20}; do
+  if [[ "$(curl -s -m 2 -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/api/health 2>/dev/null)" == "200" ]]; then
+    ok=1
+    break
+  fi
+  sleep 1
+done
+if (( ok )); then
+  say "入れ終わりました。http://localhost:8765(スマホからは http://stockportal.local:8765)で開けます"
+  say "既存の com.yone.technicalanalysis.screen には触っていません"
+else
+  warn "サーバーが応答しません。次を見てください:"
+  warn "  tail -30 $ROOT/logs/server.log"
+  warn "  launchctl print gui/$(id -u)/com.yone.stockportal.server | head -30"
+  exit 1
+fi
