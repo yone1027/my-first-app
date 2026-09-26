@@ -132,9 +132,37 @@ def test_heatmap_has_one_cell_per_week(client):
     assert all(len(s["heat"]) == len(body["weeks"]) for s in body["sectors"])
 
 
-def test_not_built_datasets_say_why(client):
-    """主体別と指標は集計が未実装。理由を添えて空で返す(§6.7・§6.8)。"""
+def test_investors_are_built_and_lag_by_at_least_a_week(client):
+    """主体別売買動向は 2026-09-27 に実装した(§6.7)。"""
     body = market_or_skip(client, "/api/market/japan")
-    assert body["investors"]["subjects"] == []
-    assert "not_implemented" in (body["investors"]["not_built"] or "")
-    assert all(i["latest"] is None for i in body["indicators"])
+    investors = body["investors"]
+    if not investors["subjects"]:
+        pytest.skip("投資部門別情報の集計がありません(aggregate を実行してください)")
+    assert investors["section"] == "all"
+    assert [s["key"] for s in investors["subjects"]] == [
+        "foreigners", "individuals", "investment_trusts",
+        "business_cos", "trust_banks", "proprietary", "other",
+    ]
+    # 公表が1週以上遅れるので、右端の週は必ず空になる
+    foreigners = next(s for s in investors["subjects"] if s["key"] == "foreigners")
+    assert foreigners["series"][-1] is None
+    # それでも要約は出る(値のある直近の週で作る)
+    assert investors["summary"]["up"] and investors["summary"]["down"]
+    assert investors["latest_published"]["pub_date"]
+
+
+def test_each_indicator_says_which_source_is_missing(client):
+    """取れていない指標は、その指標の取得元の理由を返す(§6.8)。"""
+    body = market_or_skip(client, "/api/market/japan")
+    by_key = {i["key"]: i for i in body["indicators"]}
+    assert set(by_key) == {"jgb10y", "usdjpy", "wti"}
+
+    # 10年国債利回りは実装済み(財務省の CSV)
+    if by_key["jgb10y"]["latest"] is None:
+        pytest.skip("10年国債利回りの集計がありません")
+    assert by_key["jgb10y"]["not_built"] is None
+    assert by_key["jgb10y"]["last_obs"]
+
+    # ドル円と WTI は保留。理由はそれぞれの取得元のもの
+    assert "ドル円の取得元が未定" in (by_key["usdjpy"]["not_built"] or "")
+    assert "EIA_API_KEY" in (by_key["wti"]["not_built"] or "")

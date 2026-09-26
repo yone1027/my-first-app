@@ -86,7 +86,10 @@ def _investors_payload(market: Market, section: str, weeks: list[str], window: P
     deltas: dict[str, float | None] = {}
     for key in SUBJECTS:
         values = P.values_for(by_subject.get(key, {}), weeks)
-        recent = P.mean(values[-window.recent :])
+        # 公表が1週以上遅れるので、期間の右端の数週はいつも空になる。
+        # 「直近 R 週」は**値のある**最後の R 週で取る(2026-09-27 修正)。
+        present = [v for v in values if v is not None]
+        recent = P.mean(present[-window.recent :]) if present else None
         whole = P.mean(values)
         deltas[key] = None if recent is None or whole is None else recent - whole
         subjects.append(
@@ -141,11 +144,14 @@ def japan(request: Request, period: str = Query(default=P.DEFAULT_PERIOD)) -> di
     close = [topix.get(w, {}).get("close") for w in weeks]
     latest_valuation = valuation.get(weeks[-1], {}) if weeks else {}
 
+    # 指標ごとの取得元(manifest の sources のキー)。取れていないときの理由を出すのに使う。
+    SOURCE_OF = {"jgb10y": "mof", "usdjpy": "boj", "wti": "eia"}
     indicators = []
     for key in ("jgb10y", "usdjpy", "wti"):
         series = market.indicator_series(key)
         values = [series.get(w, {}).get("value") for w in weeks]
         present = [w for w in weeks if series.get(w, {}).get("value") is not None]
+        source = market.manifest.get("sources", {}).get(SOURCE_OF[key], {})
         indicators.append(
             {
                 "key": key,
@@ -153,7 +159,7 @@ def japan(request: Request, period: str = Query(default=P.DEFAULT_PERIOD)) -> di
                 "latest": values[-1] if values else None,
                 "change": P.change_over_period(values),
                 "last_obs": series.get(present[-1], {}).get("obs_date") if present else None,
-                "not_built": None if present else market.manifest.get("sources", {}).get("mof", {}).get("error"),
+                "not_built": None if present else source.get("error"),
             }
         )
 

@@ -71,9 +71,10 @@ def run(cfg: config.Config, now: datetime, rebuild: bool) -> dict:
     log.info("EPS・PER(%d 週)", len(target))
     valuation_rows = valuation.aggregate(raw, target, topix_rows, cfg.aggregate.exclude_markets, warnings)
 
-    # 保留中の2つ(§6.7・§6.8)
-    investor_rows = investors.aggregate()
-    indicator_rows = indicators.aggregate()
+    log.info("主体別売買動向")
+    investor_rows = investors.aggregate(cfg, now, warnings, rebuild)
+    log.info("日本をとりまく指標")
+    indicator_rows = indicators.aggregate(cfg, all_weeks, now, warnings, rebuild)
 
     # 差分のときは、前回の結果に重ねる
     if not rebuild:
@@ -88,14 +89,20 @@ def run(cfg: config.Config, now: datetime, rebuild: bool) -> dict:
         "datasets": {
             "turnover": {"latest_week_end": latest_week_end(turnover_rows)},
             "valuation": {"latest_week_end": latest_week_end(valuation_rows)},
-            "investors": {"latest_week_end": latest_week_end(investor_rows), "latest_pub_date": None},
-            "indicators": {k: None for k in indicators.INDICATORS},
+            "investors": {
+                "latest_week_end": latest_week_end(investor_rows),
+                "latest_pub_date": max((r["pub_date"] for r in investor_rows), default=None),
+            },
+            "indicators": {
+                key: max((r["week_end"] for r in indicator_rows if r["indicator"] == key), default=None)
+                for key in indicators.INDICATORS
+            },
         },
         "sources": {
-            "investor_types": {"ok": False, "error": investors.NOT_BUILT_REASON},
-            "mof": {"ok": False, "error": indicators.NOT_BUILT_REASON},
-            "boj": {"ok": False, "error": indicators.NOT_BUILT_REASON},
-            "eia": {"ok": False, "error": indicators.NOT_BUILT_REASON},
+            "investor_types": (
+                {"ok": True} if investor_rows else {"ok": False, "error": investors.NOT_BUILT_REASON}
+            ),
+            **indicators.sources_status(indicator_rows),
         },
         "warnings": warnings[:200],
     }

@@ -6,10 +6,11 @@
   import CardState from '$lib/components/CardState.svelte';
   import Chart from '$lib/components/Chart.svelte';
   import HierarchyNav from '$lib/components/HierarchyNav.svelte';
+  import Investors from '$lib/components/Investors.svelte';
   import PeriodPicker from '$lib/components/PeriodPicker.svelte';
   import { api, ApiFailure, type Japan } from '$lib/api';
   import { cho, dec, pct, pt, rank, times, weekRange } from '$lib/format';
-  import { INDICATOR_LABEL, INVESTOR_LABEL, INVESTOR_ORDER, SEGMENT_LABEL } from '$lib/labels';
+  import { INDICATOR_LABEL, SEGMENT_LABEL } from '$lib/labels';
   import { cssValue } from '$lib/theme';
 
   const period = $derived(page.url.searchParams.get('period') ?? '13w');
@@ -33,6 +34,18 @@
   });
 
   const labels = $derived((data?.weeks ?? []).map((w) => weekRange(w.start, w.end)));
+
+  /** 指標の小さな線。軸の数字は最小限(§8.4)。 */
+  function sparkline(values: (number | null)[]) {
+    return {
+      animation: false,
+      grid: { left: 40, right: 8, top: 8, bottom: 18 },
+      xAxis: { type: 'category' as const, data: labels, axisLabel: { show: false }, axisTick: { show: false }, axisLine: { lineStyle: { color: cssValue('--border') } } },
+      yAxis: { type: 'value' as const, scale: true, splitLine: { show: false }, axisLabel: { color: cssValue('--text-muted'), fontSize: 9 } },
+      tooltip: { trigger: 'axis' as const },
+      series: [{ type: 'line' as const, data: values, showSymbol: false, lineStyle: { width: 1.5, color: cssValue('--down') }, connectNulls: true }]
+    };
+  }
   const shortMarks = $derived(
     (data?.weeks ?? []).map((w, i) => (w.short ? { xAxis: i } : null)).filter(Boolean) as { xAxis: number }[]
   );
@@ -134,19 +147,13 @@
   </section>
 
   <!-- (3) 主体別売買動向 -->
-  <section class="card">
-    <h2>主体別売買動向(東証全体)</h2>
-    {#if data.investors.subjects.length === 0}
-      <CardState error={data.investors.not_built ? '集計がまだ作られていません(投資部門別情報の取得が未実装)' : null} empty={!data.investors.not_built} />
-      <p class="muted">この欄は、J-Quants の投資部門別情報を取得する処理を作ってから表示します。</p>
-    {:else}
-      <div class="row" style="gap: 16px">
-        {#each INVESTOR_ORDER as key, i}
-          <span class="row" style="gap: 6px"><span class="swatch" style="background: var(--investor-{i})"></span>{INVESTOR_LABEL[key]}</span>
-        {/each}
-      </div>
-    {/if}
-  </section>
+  <Investors
+    investors={data.investors}
+    weeks={data.weeks}
+    topix={data.topix.close}
+    recent={data.params.recent}
+    title="主体別売買動向"
+  />
 
   <!-- (4) 業績と評価 -->
   <section class="card">
@@ -171,21 +178,25 @@
   <!-- (5) 日本をとりまく指標 -->
   <section class="card">
     <h2>日本をとりまく指標</h2>
-    <div class="row" style="gap: 24px">
+    <div class="indicators">
       {#each data.indicators as ind}
-        <div>
+        <div class="indicator">
           <div class="muted">{INDICATOR_LABEL[ind.key]?.name ?? ind.key}</div>
           {#if ind.latest == null}
-            <span class="muted">—</span>
+            <div class="sub">—</div>
+            <p class="muted">{ind.not_built ? '取得元が未定です' : 'この期間のデータがありません'}</p>
           {:else}
-            <strong>{dec(ind.latest, 2)}{INDICATOR_LABEL[ind.key]?.unit ?? ''}</strong>
+            <div>
+              <strong style="font-size: 18px">{dec(ind.latest, 3)}</strong>
+              <span class="muted">{INDICATOR_LABEL[ind.key]?.unit ?? ''}</span>
+              <span class="muted">期間で {ind.key === 'jgb10y' ? pct(ind.change, 3, true) + 'pt' : pct(ind.change, 1, true)}</span>
+            </div>
+            <Chart option={sparkline(ind.values)} height={70} />
+            <p class="muted">最終観測 {ind.last_obs ?? '—'}</p>
           {/if}
         </div>
       {/each}
     </div>
-    {#if data.indicators.every((i) => i.latest == null)}
-      <p class="muted" style="margin-top: 8px">この欄は、財務省・日本銀行・EIA からデータを取得する処理を作ってから表示します。</p>
-    {/if}
   </section>
 {/if}
 
@@ -193,4 +204,6 @@
   .bar { display: flex; height: 26px; border-radius: 4px; overflow: hidden; background: var(--surface-alt); }
   .seg { height: 100%; }
   .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .indicators { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--gap); }
+  .indicator { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; }
 </style>

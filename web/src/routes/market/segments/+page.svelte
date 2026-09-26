@@ -7,6 +7,7 @@
   import CardState from '$lib/components/CardState.svelte';
   import Chart from '$lib/components/Chart.svelte';
   import HierarchyNav from '$lib/components/HierarchyNav.svelte';
+  import Investors from '$lib/components/Investors.svelte';
   import PeriodPicker from '$lib/components/PeriodPicker.svelte';
   import { api, ApiFailure, type Segments } from '$lib/api';
   import { cho, dec, pct, times, weekRange } from '$lib/format';
@@ -152,13 +153,14 @@
     {/if}
   </section>
 
-  <section class="card">
-    <h2>主体別売買動向(区分ごと)</h2>
-    {#if (current?.investors.subjects.length ?? 0) === 0}
-      <CardState error={current?.investors.not_built ? '集計がまだ作られていません(投資部門別情報の取得が未実装)' : null} />
-      <p class="muted">この欄は、J-Quants の投資部門別情報を取得する処理を作ってから表示します。</p>
-    {/if}
-  </section>
+  {#if current}
+    <Investors
+      investors={current.investors}
+      weeks={data.weeks}
+      recent={data.params.recent}
+      title={`主体別売買動向 — ${SEGMENT_LABEL[picked]}`}
+    />
+  {/if}
 {/if}
 
 <style>
