@@ -50,14 +50,14 @@ def aggregate(cfg=None, weeks: list[dict] | None = None, now: datetime | None = 
     # ---- jgb10y(財務省)----
     cache_dir = cfg.paths.raw_dir / "mof"
     try:
-        # 全期間の CSV が無ければ初回として取る。あれば当月だけ取って重ねる。
-        full = not (cache_dir / "jgbcm_all.csv").exists() or rebuild
         values = mof.load_cache(cache_dir)
-        values.update(mof.fetch(full=full, cache_dir=cache_dir))
-        if not full:
-            # 当月だけ取った場合は、全期間のキャッシュと重ねる
-            values = {**mof.load_cache(cache_dir), **values}
-        log.info("10年国債利回り: %d 日分", len(values))
+        # 全期間の CSV は、無いときと --rebuild のときだけ取る(重いので毎回は取らない)
+        if not (cache_dir / "jgbcm_all.csv").exists() or rebuild:
+            values.update(mof.fetch(full=True, cache_dir=cache_dir))
+        # 当月の CSV は**毎回**取る。全期間の CSV は前月までしか入っていないため、
+        # これを飛ばすと今月の週が埋まらない(2026-09-27 に踏んだ)。
+        values.update(mof.fetch(full=False, cache_dir=cache_dir))
+        log.info("10年国債利回り: %d 日分(いちばん新しい日 %s)", len(values), max(values) if values else "—")
     except mof.FetchError as exc:
         log.warning("10年国債利回りを取れませんでした: %s", exc)
         warnings.append(f"10年国債利回りを取れませんでした({exc})。前回のキャッシュで続けます")
