@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  ポータルのサーバー。Mac にログインしたときに自動で起動し、落ちたら再起動する。
+  詳細設計書 §10.1。
+
+  入れる: deploy/install.sh が置いて読み込む
+  外す:   launchctl bootout gui/$(id -u)/com.yone.stockportal.server
+  今すぐ: launchctl kickstart -k gui/$(id -u)/com.yone.stockportal.server
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.yone.stockportal.server</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/yone/StockPortal/app/server/.venv/bin/uvicorn</string>
+    <string>stockportal.app:factory</string>
+    <string>--factory</string>
+    <string>--host</string>
+    <string>0.0.0.0</string>
+    <string>--port</string>
+    <string>8765</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/yone/StockPortal/app/server</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>STOCKPORTAL_CONFIG</key>
+    <string>/Users/yone/StockPortal/config.toml</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/yone/StockPortal/logs/server.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/yone/StockPortal/logs/server.log</string>
+</dict>
+</plist>

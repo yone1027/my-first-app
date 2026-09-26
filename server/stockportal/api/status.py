@@ -24,8 +24,13 @@ def _read_steps(status_dir: Path, date_str: str | None) -> dict[str, str]:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return {}
-    steps = payload.get("steps", {})
-    return {k: (v.get("result") if isinstance(v, dict) else v) for k, v in steps.items()}
+    steps = payload.get("steps")
+    # §4.6 のとおり、steps は {"name", "status", …} の配列
+    if isinstance(steps, list):
+        return {s["name"]: s.get("status") for s in steps if isinstance(s, dict) and s.get("name")}
+    if isinstance(steps, dict):  # 古い形も読めるようにしておく
+        return {k: (v.get("status") if isinstance(v, dict) else v) for k, v in steps.items()}
+    return {}
 
 
 def _delayed_after(cfg, expected_week_end: str | None) -> datetime | None:

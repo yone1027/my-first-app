@@ -33,6 +33,10 @@ sed -e 's#^portal_data.*#portal_data    = "'"$PWD"'/.dev/StockPortal/data"#' \
 cd server && STOCKPORTAL_CONFIG=../.dev/config.toml \
   ../.venv/bin/python -m stockportal.batch.aggregate --rebuild
 
+# 週次の後続の処理(手動。--only でやり直す手順を選べる)
+STOCKPORTAL_CONFIG=../.dev/config.toml \
+  ../.venv/bin/python -m stockportal.batch.weekly --as-of 2026-09-25 --only aggregate
+
 # サーバー
 STOCKPORTAL_CONFIG=../.dev/config.toml \
   ../.venv/bin/uvicorn stockportal.app:factory --factory --host 127.0.0.1 --port 8765
@@ -54,7 +58,7 @@ cd server && ../.venv/bin/python -m pytest tests -q
 |---|---|
 | 主体別売買動向(F1-9)の集計 | J-Quants `/equities/investor-types` が未取得。項目名・`Section` の値・`PubDate` が要確認(詳細設計書 §6.7・§12.4) |
 | 日本をとりまく指標(F1-7)の集計 | 財務省・日本銀行・EIA が未取得。系列コード・CSV の形・公表時刻が要確認(同 §6.8・§12.4) |
-| 週次の後続の処理(§4) | 上の2つが揃ってから。既存スクリプトの呼び出しと待ち合わせだけなので、集計の完成後に実装する |
+| 主体別売買動向・指標を使う画面の欄 | 上の2つの集計ができてから表示される。API は理由を添えて空で返し、画面はそのカードだけ「データを読み込めませんでした」を出す |
 
 どちらも `manifest.json` の `sources` に理由を残し、API はそのカードだけを空で返す。
 画面はカードごとに「データを読み込めませんでした」を出す(§8.2)。

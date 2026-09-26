@@ -447,6 +447,9 @@ jquants_fins_per_minute = 60
 | `weekly.last_updated` | その基準日の `verdicts.csv`・`picks_*.csv`・`candidates.csv` の更新時刻のうち、いちばん新しいもの |
 | `delayed` | 今が「`expected_week_end` の週の土曜 12:00」(設定 `delayed_after`)を過ぎていて、データの週が `expected_week_end` より古い。または、実行状況(§4.6)でその画面の元になる手順が `failed` / `timeout` |
 
+- `weekly.steps` は、§4.6 の `steps`(**配列**)を `{手順の名前: status}` に直して返す。§4.6 の形をそのまま読むこと。
+  - 実装のとき、この API を先に書いて `steps` を辞書だと思い込み、テストで取り違えが出た(2026-09-26)。形を変えるときは両方を直す。
+
 - 画面は、この API をページを開くたびに1回呼ぶ。自動では呼び直さない(基本設計書 §7.1)。
 
 ### 5.8 銘柄の検索(`GET /api/search`)
