@@ -1005,7 +1005,10 @@ jquants_fins_per_minute = 60
      - **引数の書式に注意(2026-09-26 修正)。** 曜日は `MTWRFSU` の**1文字ずつの部分集合**(M=月・T=火・W=水・R=木・F=金・**S=土**・U=日)、時刻は `HH:mm:ss`。`SAT 02:55` と書くと `Error: badly formatted repeating power event` になる(実際に踏んだ)。`man pmset` の「SCHEDULED EVENT ARGUMENTS」のとおり。
      - 繰り返しの予約は「入れる側」と「切る側」で1組だけ持てる。すでに別の予約があると置き換わるので、`pmset -g sched` で先に確かめる。
    - `sudo scutil --set LocalHostName stockportal`(2026-09-26 決定)。スマホから `http://stockportal.local:8765` で開けるようにする。既定の `LocalHostName` は macOS が自動で採番するため(2026-09-26 時点は `yone-3`)、ネットワーク環境によって変わる。明示的に設定して固定する。設定後、`scutil --get LocalHostName` が `stockportal` を返すことと、`ping stockportal.local` が通ることを確かめる。
-1. リポジトリの `main` を `/Users/yone/StockPortal/app/` に書き出す(`git worktree` か `git archive`)。作業中のブランチの変更が、動いているポータルに混ざらないようにするため。
+1. リポジトリの `main` を `/Users/yone/StockPortal/app/` に書き出す(`git archive`)。作業中のブランチの変更が、動いているポータルに混ざらないようにするため。
+   - **書き出す版は `origin/main`(2026-09-27 修正)。** ローカルの `main` は古いことがある。実際に、ローカル `main` が初期コミットのままの環境で `git archive main` を実行し、`README.md` だけが書き出されて `uv sync` の段で止まった。
+   - 書き出す前に ref の中身を確かめ(`server/pyproject.toml` があるか)、無ければそこで止める。書き出したあとにも `server/pyproject.toml`・`web/package.json`・`config/config.example.toml` の3つを確かめる。
+   - 別の版を入れたいときは第2引数で渡す(`deploy/install.sh "$PWD" develop`)。
 2. `server/` で `uv sync`(ポータルの仮想環境を作る)。
 3. `web/` で `npm ci && npm run build`(`web/build/` に書き出す)。
 4. `config.toml` がなければ、見本をコピーする。

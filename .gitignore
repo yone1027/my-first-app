@@ -6,7 +6,9 @@ node_modules/
 
 # 開発用
 .venv/
-.dev/           # 開発用の設定と集計の出力(実機は /Users/yone/StockPortal/)
+# 開発用の設定と集計の出力(実機は /Users/yone/StockPortal/)
+# .gitignore では行末コメントは書けない(パターンの一部になる)
+.dev/
 __pycache__/
 *.pyc
 .pytest_cache/
