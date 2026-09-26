@@ -3,3 +3,13 @@ node_modules/
 .env
 .env.*
 !.env.example
+
+# 開発用
+.venv/
+.dev/           # 開発用の設定と集計の出力(実機は /Users/yone/StockPortal/)
+__pycache__/
+*.pyc
+.pytest_cache/
+web/node_modules/
+web/build/
+web/.svelte-kit/

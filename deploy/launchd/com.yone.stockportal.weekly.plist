@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  週次の後続の処理。土曜 3:00 に起動する(既存の一括分析と同じ時刻)。
+  詳細設計書 §4.5・§10.1。
+
+  caffeinate -i -m -s で包むのは、処理中に Mac がスリープしないようにするため。
+  待っている間もアサーションを保持するので、同時に動いている既存の一括分析も
+  スリープに巻き込まれない。-s は AC 電源のときだけ有効なので、土曜の夜は
+  電源につないでおく(運用の前提。要件定義書 §7)。
+
+  あわせて、土曜 2:55 に Mac を起こす予約を入れる(install.sh が案内する):
+    sudo pmset repeat wakeorpoweron SAT 02:55
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.yone.stockportal.weekly</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/caffeinate</string>
+    <string>-i</string>
+    <string>-m</string>
+    <string>-s</string>
+    <string>/Users/yone/StockPortal/app/server/.venv/bin/python</string>
+    <string>-m</string>
+    <string>stockportal.batch.weekly</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Weekday</key>
+    <integer>6</integer>
+    <key>Hour</key>
+    <integer>3</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+  <key>WorkingDirectory</key>
+  <string>/Users/yone/StockPortal/app/server</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>STOCKPORTAL_CONFIG</key>
+    <string>/Users/yone/StockPortal/config.toml</string>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>/Users/yone/StockPortal/logs/weekly/launchd.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/yone/StockPortal/logs/weekly/launchd.log</string>
+</dict>
+</plist>

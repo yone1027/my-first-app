@@ -194,15 +194,23 @@ border       = "#E4E1D8"
 border_strong = "#D6D2C7"
 font_family  = '"BIZ UDPGothic", sans-serif'
 # 判定のラベル(背景/文字の組)
-buy_bg   = "#F7E3DC"; buy_fg   = "#B1442A"
-sell_bg  = "#DFE9F2"; sell_fg  = "#2F6690"
-neutral_bg = "#EEECE6"; neutral_fg = "#57534A"
-unknown_bg = "#FFFFFF"; unknown_fg = "#6B675E"
-conflict_bg = "#F0E4EE"; conflict_fg = "#7A4B72"
+buy_bg      = "#F7E3DC"
+buy_fg      = "#B1442A"
+sell_bg     = "#DFE9F2"
+sell_fg     = "#2F6690"
+neutral_bg  = "#EEECE6"
+neutral_fg  = "#57534A"
+unknown_bg  = "#FFFFFF"
+unknown_fg  = "#6B675E"
+conflict_bg = "#F0E4EE"
+conflict_fg = "#7A4B72"
 # チャートの面(文字ではないので画面案の値のまま)
-up = "#B5452B"; down = "#2F6690"
+up   = "#B5452B"
+down = "#2F6690"
 # 市場区分
-prime = "#2E4057"; standard = "#3E8E7E"; growth = "#9A5B8F"
+prime    = "#2E4057"
+standard = "#3E8E7E"
+growth   = "#9A5B8F"
 # 主体(海外投資家・個人・投資信託・事業法人・信託銀行・証券会社の自己売買)
 investors = ["#2E4057", "#E0912F", "#3E8E7E", "#9A5B8F", "#8DB3D9", "#C9B37E"]
 
@@ -439,6 +447,9 @@ jquants_fins_per_minute = 60
 | `weekly.last_updated` | その基準日の `verdicts.csv`・`picks_*.csv`・`candidates.csv` の更新時刻のうち、いちばん新しいもの |
 | `delayed` | 今が「`expected_week_end` の週の土曜 12:00」(設定 `delayed_after`)を過ぎていて、データの週が `expected_week_end` より古い。または、実行状況(§4.6)でその画面の元になる手順が `failed` / `timeout` |
 
+- `weekly.steps` は、§4.6 の `steps`(**配列**)を `{手順の名前: status}` に直して返す。§4.6 の形をそのまま読むこと。
+  - 実装のとき、この API を先に書いて `steps` を辞書だと思い込み、テストで取り違えが出た(2026-09-26)。形を変えるときは両方を直す。
+
 - 画面は、この API をページを開くたびに1回呼ぶ。自動では呼び直さない(基本設計書 §7.1)。
 
 ### 5.8 銘柄の検索(`GET /api/search`)
@@ -547,16 +558,26 @@ jquants_fins_per_minute = 60
 1. 決算短信を、開示の日時 `DiscDate` + `DiscTime`(JST)の順に並べる。
 2. その週の `week_end` の 17:00 までに開示されたもののうち、銘柄ごとに最後の1件を採る(17:00ルール。要件 F1-8)。
 3. その1件から、使う予想の値を次で決める。
-   - 開示が**本決算**(`CurPerType` が `FY`)のとき: 翌期の予想 `NxFNp`。
+   - `DocType` が **`FYFinancialStatements_*`(本決算)のとき: 翌期の予想 `NxFNp`**。
    - それ以外(四半期の決算、予想の修正): 当期の予想 `FNP`。
    - 値が空のときは、その銘柄の予想はないものとする。
    - **注意**: 翌期の予想の項目名は **`NxFNp`**(小文字の p)である。キャッシュの実物で確認した(2026-09-26)。当初 `NxFNP` と書いていた要件定義書 F1-8 も実物に合わせて直した(§12.3)。
-   - `DocType` の値の一覧と、「予想の修正」の開示に `FNP` が入るかは**要確認**。実装の最初に、キャッシュの `DocType` の値ごとに、`FNP`・`NxFNp` が入っている割合を数えて確かめる。
+   - **`CurPerType` ではなく `DocType` で見分ける(2026-09-26 確認・修正)。** 当初は「`CurPerType` が `FY`」としていたが、実物では `EarnForecastRevision`(予想の修正)にも `CurPerType` が `FY` のものがあり、その場合に入っているのは**当期**の予想 `FNP` である。直近60ファイルを数えた結果は次のとおり。
+
+| `DocType` | 件数 | `FNP` 有 | `NxFNp` 有 |
+|---|---|---|---|
+| `1Q/2Q/3QFinancialStatements_*` | 3,570 | 3,362 | 0 |
+| `FYFinancialStatements_*` | 418 | 0 | 374 |
+| `EarnForecastRevision` | 325 | 209 | 0 |
+| `DividendForecastRevision`・`REITEarnForecastRevision` | 108 | 0 | 0 |
+
+   - 配当だけの修正(`DividendForecastRevision`・`REITEarnForecastRevision`)は、どちらの項目も空なので読み飛ばす。
 4. 予想の値が 0 より大きい銘柄を**対象**、0 以下を**除いた赤字予想**、予想がない銘柄は数えない。
 
 **合計する**
 - 時価総額 = その週の最終営業日の `MktCap`。
-  - `MktCap` の単位は**要確認**(極洋 2026-09-25 が `56949.0`。百万円と見られる)。`FNP` は円の文字列。単位をそろえてから割る。
+  - **`MktCap` の単位は百万円(2026-09-26 確定)。** `verdicts.csv` の「時価総額(億円)」と6銘柄で突き合わせ、`MktCap ÷ 100 = 億円` が比 1.0000 で一致した。`FNP`・`NxFNp` は**円**の文字列(例: 平和堂 `'9800000000'` = 98億円)。
+  - したがって `時価総額(円) = MktCap × 1_000_000`。PER はこれを利益の合計(円)で割る。
 - 対象銘柄について、週・区分(`all` と3つの区分)ごとに、`mktcap_sum`・`np_sum`・`n_target`・`n_excluded_loss` を出す。
 - `per = mktcap_sum ÷ np_sum`。`eps = TOPIX の週の終値 ÷ per`(`all` だけ)。
 - 集計の対象から外す銘柄は、§6.4 と同じにする。
@@ -719,7 +740,7 @@ jquants_fins_per_minute = 60
 | `ev_fill`・`ev_order` | 期待リターン |
 
 - 市場の区分は CSV にないので、最新の銘柄一覧(§5.8)から付ける。
-- 値の単位(`p_*` が 0〜1 か %か、`ev_*` が割合か %か)は、実物の md の表示と突き合わせて決める(**要確認**。日本郵政 2026-09-25: md の約定確率 50.0%)。
+- 値の単位は **`p_*`・`ev_*` のどれも割合(0〜1)**(2026-09-26 確定)。md の表示と突き合わせて確認した(日本郵政 2026-09-25: `p_fill` 0.4995 → md「50.0%」、`ev_fill` 0.02388 → md「2.4%」、`ev_order` 0.01193 → md「1.2%」)。画面で100倍して % にする。
 
 **選定基準の札の文言**(`criteria` の辞書のキー → 札)
 
@@ -1054,10 +1075,10 @@ jquants_fins_per_minute = 60
 
 **要確認(実物を見て決める)**
 1. 投資部門別情報の API の項目名、`Section` の値、履歴の長さ、`PubDate` の曜日と時刻(§6.7)。
-2. 決算短信の `DocType` の値ごとの `FNP`・`NxFNp` の入り方(§6.6)。
-3. `MktCap` の単位(§6.6)。
+2. ~~決算短信の `DocType` の値ごとの `FNP`・`NxFNp` の入り方~~ → **2026-09-26 確認済み**(§6.6。`FYFinancialStatements_*` は `NxFNp`、四半期と予想の修正は `FNP`、配当だけの修正はどちらも空)。
+3. ~~`MktCap` の単位~~ → **2026-09-26 確定: 百万円**(§6.6)。
 4. 日本銀行の API で、ドル円 17時・中値の系列コード(§6.8)。
 5. 財務省 CSV の利用条件と更新の時刻、EIA の公表の遅れ(§6.8)。
-6. `picks_*.csv` の `p_*`・`ev_*` の単位(§7.2)。
+6. ~~`picks_*.csv` の `p_*`・`ev_*` の単位~~ → **2026-09-26 確定: どれも割合(0〜1)**(§7.2)。画面で100倍して % にする。
 7. `results.jsonl` で `status` が `ok` でないときの、失敗の理由の項目名(§7.1)。
 8. 旧区分(東証1部・2部・マザーズ・JASDAQ)の `Mkt` のコードの一覧(§6.4)。

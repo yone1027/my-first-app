@@ -1,0 +1,62 @@
+[server]
+host = "0.0.0.0"
+port = 8765
+allowed_hosts = ["localhost", "127.0.0.1", "stockportal.local"]   # Host ヘッダーで受け付ける名前(§9.1)
+
+[paths]
+screen_dir     = "/Users/yone/TechnicalAnalysis/output/screen"
+candidates_dir = "/Users/yone/TechnicalAnalysis/output/candidates"
+selection_dir  = "/Users/yone/J-Quants/output/selection"
+jquants_raw    = "/Users/yone/J-Quants/data/raw"
+jquants_env    = "/Users/yone/J-Quants/.env"
+portal_data    = "/Users/yone/StockPortal/data"
+logs           = "/Users/yone/StockPortal/logs"
+
+[batch]
+python_existing = "/Users/yone/opt/anaconda3/bin/python3"   # 既存のスクリプトを呼ぶ Python
+wait_screen_max_minutes = 180
+wait_screen_poll_seconds = 60
+step_timeout_minutes = { candidates = 120, weekly_picks = 180, aggregate = 60 }
+
+[aggregate]
+exclude_markets = ["0105", "0109"]   # 集計から外す市場区分。TOKYO PRO MARKET と ETF・REIT など(§6.4)
+recompute_weeks = 4                  # 毎週さかのぼって作り直す週数(§6.2)
+
+[theme]
+# 色の既定値(基本設計書 §4.8)。端末ごとの上書きは設定画面 G-30(localStorage)で行う。
+bg           = "#F5F3EE"
+surface      = "#FFFFFF"
+surface_alt  = "#F7F5F0"
+text         = "#1C1B19"
+text_sub     = "#57534A"
+text_muted   = "#6B675E"
+border       = "#E4E1D8"
+border_strong = "#D6D2C7"
+font_family  = '"BIZ UDPGothic", sans-serif'
+# 判定のラベル(背景/文字の組)
+buy_bg      = "#F7E3DC"
+buy_fg      = "#B1442A"
+sell_bg     = "#DFE9F2"
+sell_fg     = "#2F6690"
+neutral_bg  = "#EEECE6"
+neutral_fg  = "#57534A"
+unknown_bg  = "#FFFFFF"
+unknown_fg  = "#6B675E"
+conflict_bg = "#F0E4EE"
+conflict_fg = "#7A4B72"
+# チャートの面(文字ではないので画面案の値のまま)
+up   = "#B5452B"
+down = "#2F6690"
+# 市場区分
+prime    = "#2E4057"
+standard = "#3E8E7E"
+growth   = "#9A5B8F"
+# 主体(海外投資家・個人・投資信託・事業法人・信託銀行・証券会社の自己売買)
+investors = ["#2E4057", "#E0912F", "#3E8E7E", "#9A5B8F", "#8DB3D9", "#C9B37E"]
+
+[schedule]
+delayed_after = "SAT 12:00"     # これを過ぎても前の週のままなら「更新が遅れています」(基本設計書 §4.3)
+
+[api]
+jquants_per_minute = 100
+jquants_fins_per_minute = 60
