@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-26T23:59:59+09:00",
+  "as_of": "2026-09-25",
+  "latest_week_end": "2026-09-25",
+  "datasets": {
+    "turnover": {
+      "latest_week_end": "2026-09-25"
+    },
+    "valuation": {
+      "latest_week_end": "2026-09-25"
+    },
+    "investors": {
+      "latest_week_end": null,
+      "latest_pub_date": null
+    },
+    "indicators": {
+      "jgb10y": null,
+      "usdjpy": null,
+      "wti": null
+    }
+  },
+  "sources": {
+    "investor_types": {
+      "ok": false,
+      "error": "not_implemented: /equities/investor-types を未取得(詳細設計書 §6.7・§12.4 の要確認 1)"
+    },
+    "mof": {
+      "ok": false,
+      "error": "not_implemented: 財務省・日本銀行・EIA を未取得(詳細設計書 §6.8・§12.4 の要確認 4・5)"
+    },
+    "boj": {
+      "ok": false,
+      "error": "not_implemented: 財務省・日本銀行・EIA を未取得(詳細設計書 §6.8・§12.4 の要確認 4・5)"
+    },
+    "eia": {
+      "ok": false,
+      "error": "not_implemented: 財務省・日本銀行・EIA を未取得(詳細設計書 §6.8・§12.4 の要確認 4・5)"
+    }
+  },
+  "warnings": []
+}
