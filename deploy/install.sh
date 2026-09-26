@@ -32,7 +32,7 @@ if [[ "$(scutil --get LocalHostName 2>/dev/null)" != "stockportal" ]]; then
 fi
 if ! pmset -g sched 2>/dev/null | grep -q 'wakeorpoweron.*SAT'; then
   warn "土曜 3:00 に Mac が起きているようにするには、次を実行してください:"
-  warn "  sudo pmset repeat wakeorpoweron SAT 02:55"
+  warn "  sudo pmset repeat wakeorpoweron S 02:55:00"   # 曜日は MTWRFSU の部分集合、時刻は HH:mm:ss
 fi
 
 # ---- 手順 1: 動かす版を書き出す ----

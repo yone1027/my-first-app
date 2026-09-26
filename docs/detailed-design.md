@@ -1,12 +1,13 @@
 # 株価ポータル 詳細設計書(草案)
 
-- 版: 草案 v0.5(2026-09-26)
+- 版: 草案 v0.6(2026-09-26)
 - 変更履歴
   - v0.1 作成
   - v0.2 スプリント1の確定作業(1)。技術スタック(§2)を確定し、この Mac の実測(§2.1)と採用しなかった案(§2.2)を追記。判定ラベルの正本を `verdicts.csv` に確定し実測値に差し替え(§7.1)、売買代金の集計範囲を確定(§6.4)、`period` の既定を `13w` に、業種の太字を上位3と下位3に(§5.2・§5.6)。§12.3 を「確認してほしいこと」から「決定・反映済み」に書き換えた
   - v0.3 スプリント1の確定作業(2)。§12.2 の仮置き13件をすべて確定。土曜の処理中にスリープさせない仕組みを追加(§10.1)。キャッシュの対象を明確化し索引方式の実測値を追記(§5.5)。差分の再計算を設定に外出し(§6.2)。TradingView の URL を実機で検証(§8.7)。設定ファイルに `[aggregate]` を追加(§3.3)
   - v0.4 設定ファイルに `[theme]` を追加(§3.3)。`GET /api/theme` と設定画面 G-30 の URL を追加(§5.2・§8.1)。色は `lib/theme.ts` で CSS 変数として扱い、ハードコードしない方針にした(§8.4)
   - v0.5 `uv` の入れ方を公式の配布バイナリに変更(§2.1・§2.2・§10.3)。`brew install uv` はこの環境向けの bottle が無く、LLVM 込みのソースビルドになるため
+  - v0.6 `pmset repeat` の引数の書式を修正(§10.1・§10.3)。曜日は `MTWRFSU` の1文字ずつ、時刻は `HH:mm:ss`。あわせて文書中の外部コマンド(`scutil`・`caffeinate`・`launchctl`・`git archive`・`StartCalendarInterval`)を man と実行で検証した
 - もとにした文書
   - 基本設計書 [docs/basic-design.md](basic-design.md) v0.8
   - 要件定義書 [docs/requirements.md](requirements.md) v0.40
@@ -984,7 +985,7 @@ jquants_fins_per_minute = 60
 | # | 対策 | 効く条件 |
 |---|---|---|
 | 1 | 週次の後続の処理を **`caffeinate -i -m -s`** で包んで起動する | `-i`(アイドルスリープ)と `-m`(ディスク)はバッテリーでも有効。`-s` は AC 電源のときだけ有効(`man caffeinate`) |
-| 2 | **`sudo pmset repeat wakeorpoweron SAT 02:55`** を設定する(§10.3 の手順0) | 常に有効。土曜 3:00 に起きている状態を作る |
+| 2 | **`sudo pmset repeat wakeorpoweron S 02:55:00`** を設定する(§10.3 の手順0) | 常に有効。土曜 3:00 に起きている状態を作る |
 | 3 | **土曜の夜は AC 電源につないでおく**(運用の前提) | AC は `sleep 0` なので、蓋を閉じてもスリープしない |
 
 - 1 の `caffeinate` は**既存の一括分析も守る**。後続の処理は 3:00 に起動して一括分析の完了を待つので、待っている間もアサーションを保持し続け、同時に動いている一括分析もスリープに巻き込まれない。既存のコードには手を入れずに済む(D1)。
@@ -1000,7 +1001,9 @@ jquants_fins_per_minute = 60
 ### 10.3 入れ方(`deploy/install.sh`)
 0. **初回だけ**、次の2つを先に済ませる。
    - `curl -LsSf https://astral.sh/uv/install.sh | sh` と `uv python install 3.12`(§2.1)。`brew install uv` は使わない(bottle が無くソースからビルドになる)。
-   - `sudo pmset repeat wakeorpoweron SAT 02:55`(2026-09-26 決定)。土曜 3:00 に Mac が起きている状態を作る。`pmset -g sched` で予約を確かめる。
+   - `sudo pmset repeat wakeorpoweron S 02:55:00`(2026-09-26 決定)。土曜 3:00 に Mac が起きている状態を作る。`pmset -g sched` で予約を確かめる。
+     - **引数の書式に注意(2026-09-26 修正)。** 曜日は `MTWRFSU` の**1文字ずつの部分集合**(M=月・T=火・W=水・R=木・F=金・**S=土**・U=日)、時刻は `HH:mm:ss`。`SAT 02:55` と書くと `Error: badly formatted repeating power event` になる(実際に踏んだ)。`man pmset` の「SCHEDULED EVENT ARGUMENTS」のとおり。
+     - 繰り返しの予約は「入れる側」と「切る側」で1組だけ持てる。すでに別の予約があると置き換わるので、`pmset -g sched` で先に確かめる。
    - `sudo scutil --set LocalHostName stockportal`(2026-09-26 決定)。スマホから `http://stockportal.local:8765` で開けるようにする。既定の `LocalHostName` は macOS が自動で採番するため(2026-09-26 時点は `yone-3`)、ネットワーク環境によって変わる。明示的に設定して固定する。設定後、`scutil --get LocalHostName` が `stockportal` を返すことと、`ping stockportal.local` が通ることを確かめる。
 1. リポジトリの `main` を `/Users/yone/StockPortal/app/` に書き出す(`git worktree` か `git archive`)。作業中のブランチの変更が、動いているポータルに混ざらないようにするため。
 2. `server/` で `uv sync`(ポータルの仮想環境を作る)。

@@ -10,7 +10,10 @@
   電源につないでおく(運用の前提。要件定義書 §7)。
 
   あわせて、土曜 2:55 に Mac を起こす予約を入れる(install.sh が案内する):
-    sudo pmset repeat wakeorpoweron SAT 02:55
+    sudo pmset repeat wakeorpoweron S 02:55:00
+
+  曜日は MTWRFSU の部分集合(S = 土曜)、時刻は HH:mm:ss。man pmset のとおり。
+  確認は pmset -g sched。
 -->
 <plist version="1.0">
 <dict>
