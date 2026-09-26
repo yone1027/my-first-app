@@ -1,0 +1,16 @@
+{
+  "as_of": "2026-09-25",
+  "started_at": "2026-09-26T22:53:37+09:00",
+  "finished_at": "2026-09-26T22:53:46+09:00",
+  "screen_ready_at": null,
+  "steps": [
+    {
+      "name": "aggregate",
+      "status": "ok",
+      "started_at": "2026-09-26T22:53:37+09:00",
+      "finished_at": "2026-09-26T22:53:46+09:00",
+      "exit_code": 0,
+      "log": "/Users/yone/orca/workspaces/my-first-app/develop/.dev/StockPortal/logs/weekly/20260925_aggregate.log"
+    }
+  ]
+}

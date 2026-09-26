@@ -1,11 +1,12 @@
 # 株価ポータル 詳細設計書(草案)
 
-- 版: 草案 v0.4(2026-09-26)
+- 版: 草案 v0.5(2026-09-26)
 - 変更履歴
   - v0.1 作成
   - v0.2 スプリント1の確定作業(1)。技術スタック(§2)を確定し、この Mac の実測(§2.1)と採用しなかった案(§2.2)を追記。判定ラベルの正本を `verdicts.csv` に確定し実測値に差し替え(§7.1)、売買代金の集計範囲を確定(§6.4)、`period` の既定を `13w` に、業種の太字を上位3と下位3に(§5.2・§5.6)。§12.3 を「確認してほしいこと」から「決定・反映済み」に書き換えた
   - v0.3 スプリント1の確定作業(2)。§12.2 の仮置き13件をすべて確定。土曜の処理中にスリープさせない仕組みを追加(§10.1)。キャッシュの対象を明確化し索引方式の実測値を追記(§5.5)。差分の再計算を設定に外出し(§6.2)。TradingView の URL を実機で検証(§8.7)。設定ファイルに `[aggregate]` を追加(§3.3)
   - v0.4 設定ファイルに `[theme]` を追加(§3.3)。`GET /api/theme` と設定画面 G-30 の URL を追加(§5.2・§8.1)。色は `lib/theme.ts` で CSS 変数として扱い、ハードコードしない方針にした(§8.4)
+  - v0.5 `uv` の入れ方を公式の配布バイナリに変更(§2.1・§2.2・§10.3)。`brew install uv` はこの環境向けの bottle が無く、LLVM 込みのソースビルドになるため
 - もとにした文書
   - 基本設計書 [docs/basic-design.md](basic-design.md) v0.8
   - 要件定義書 [docs/requirements.md](requirements.md) v0.40
@@ -54,7 +55,12 @@
 | anaconda | `/Users/yone/opt/anaconda3` Python 3.9.13、pandas 1.4.4、numpy 1.21.5 | ここには何も足さない。既存のスクリプトを呼ぶときだけ使う(§4.4) |
 | 既存バッチの Python | `TechnicalAnalysis/scripts/run_weekly.sh` が `PYTHON=/Users/yone/opt/anaconda3/bin/python3` と明示している | ポータルの環境を分けても既存の実行に影響しない |
 | Python 3.12 | **入っていない**(あるのは anaconda 3.9.13 / Homebrew 3.14.7 / OS 標準 3.9.6) | `uv python install 3.12` で `uv` に入れさせる |
-| `uv` | **入っていない** | `brew install uv` で入れる(Homebrew 7.0.6 あり) |
+| `uv` | **入っていない** | **公式の配布バイナリで入れる**: `curl -LsSf https://astral.sh/uv/install.sh \| sh`(`~/.local/bin/uv` に置かれる) |
+
+- **`brew install uv` は使わない(2026-09-26 修正)。** Homebrew の `uv` は macOS 15.7 / arm64 向けの bottle が提供されておらず、Rust のツールチェーンごとソースからビルドを始める(LLVM のビルドに入り、1〜3時間かかる)。実際に踏んだため、公式の配布バイナリに切り替えた。
+  - 確認した内容: `brew info --json=v2 uv` の `bottle.stable.files` が空(版 0.12.19)。ビルド依存は `pkgconf` と `rust`。
+  - 公式インストーラーはビルド済みバイナリを置くだけなので数秒で終わる。Homebrew にも依存しない。
+  - `~/.local/bin` が PATH に入っていないときは、`~/.zshrc` に追記する(インストーラーが案内する)。
 | Node.js | v24.21.0(nvm)、npm 11.19.0 | 画面のビルドにそのまま使える。nvm 管理なので launchd の環境からは見えないが、ビルドは手元で行うので問題ない(§10.3) |
 | launchd | `com.yone.technicalanalysis.screen.plist` のみ | 同じ仕組みでポータルの2つ(常駐・週次)を足す(§10.1) |
 
@@ -64,6 +70,7 @@
 |---|---|---|
 | Python | Homebrew の Python 3.14.7 を使う | 3.14 は出たばかりで、一部のライブラリのビルド済みパッケージが未提供のことがある。`brew upgrade` で版が上がってしまうリスクもある |
 | Python | 既存の anaconda に FastAPI を足す | pandas 1.4.4 / numpy 1.21.5 のままになり、ライブラリを入れた拍子に既存の一括分析が壊れるおそれがある |
+| `uv` の入れ方 | `brew install uv` | この環境向けの bottle が無く、ソースからのビルド(LLVM 込み)になる。公式の配布バイナリを使う(§2.1) |
 | 画面 | Vite + Svelte(SvelteKit なし) | 依存は減るが、SvelteKit の `adapter-static` はクラウド版で静的ホスティングにそのまま載せられる利点があるため、案のまま SvelteKit を採る |
 | 画面 | ビルドなしの素の HTML + CDN の ECharts | npm の老朽化がない反面、977行の表の絞り込み・根拠の開閉・凡例の状態管理をすべて自分で書くことになり、コード量が増える |
 
@@ -992,7 +999,7 @@ jquants_fins_per_minute = 60
 
 ### 10.3 入れ方(`deploy/install.sh`)
 0. **初回だけ**、次の2つを先に済ませる。
-   - `brew install uv` と `uv python install 3.12`(§2.1)。
+   - `curl -LsSf https://astral.sh/uv/install.sh | sh` と `uv python install 3.12`(§2.1)。`brew install uv` は使わない(bottle が無くソースからビルドになる)。
    - `sudo pmset repeat wakeorpoweron SAT 02:55`(2026-09-26 決定)。土曜 3:00 に Mac が起きている状態を作る。`pmset -g sched` で予約を確かめる。
    - `sudo scutil --set LocalHostName stockportal`(2026-09-26 決定)。スマホから `http://stockportal.local:8765` で開けるようにする。既定の `LocalHostName` は macOS が自動で採番するため(2026-09-26 時点は `yone-3`)、ネットワーク環境によって変わる。明示的に設定して固定する。設定後、`scutil --get LocalHostName` が `stockportal` を返すことと、`ping stockportal.local` が通ることを確かめる。
 1. リポジトリの `main` を `/Users/yone/StockPortal/app/` に書き出す(`git worktree` か `git archive`)。作業中のブランチの変更が、動いているポータルに混ざらないようにするため。
