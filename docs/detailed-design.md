@@ -1,6 +1,6 @@
 # 株価ポータル 詳細設計書(草案)
 
-- 版: 草案 v0.6(2026-09-26)
+- 版: 草案 v0.7(2026-09-27)
 - 変更履歴
   - v0.1 作成
   - v0.2 スプリント1の確定作業(1)。技術スタック(§2)を確定し、この Mac の実測(§2.1)と採用しなかった案(§2.2)を追記。判定ラベルの正本を `verdicts.csv` に確定し実測値に差し替え(§7.1)、売買代金の集計範囲を確定(§6.4)、`period` の既定を `13w` に、業種の太字を上位3と下位3に(§5.2・§5.6)。§12.3 を「確認してほしいこと」から「決定・反映済み」に書き換えた
@@ -8,6 +8,7 @@
   - v0.4 設定ファイルに `[theme]` を追加(§3.3)。`GET /api/theme` と設定画面 G-30 の URL を追加(§5.2・§8.1)。色は `lib/theme.ts` で CSS 変数として扱い、ハードコードしない方針にした(§8.4)
   - v0.5 `uv` の入れ方を公式の配布バイナリに変更(§2.1・§2.2・§10.3)。`brew install uv` はこの環境向けの bottle が無く、LLVM 込みのソースビルドになるため
   - v0.6 `pmset repeat` の引数の書式を修正(§10.1・§10.3)。曜日は `MTWRFSU` の1文字ずつ、時刻は `HH:mm:ss`。あわせて文書中の外部コマンド(`scutil`・`caffeinate`・`launchctl`・`git archive`・`StartCalendarInterval`)を man と実行で検証した
+  - v0.7 実機に初めて導入して見つかった3件を修正(§10.3)。書き出す版を `origin/main` に、仮想環境は入れ替えた**あと**に作る(shebang に絶対パスが焼き込まれるため)、最後に `/api/health` で起動を確かめる。zsh の置換修飾子の落とし穴も記載
 - もとにした文書
   - 基本設計書 [docs/basic-design.md](basic-design.md) v0.8
   - 要件定義書 [docs/requirements.md](requirements.md) v0.40
@@ -1008,12 +1009,17 @@ jquants_fins_per_minute = 60
 1. リポジトリの `main` を `/Users/yone/StockPortal/app/` に書き出す(`git archive`)。作業中のブランチの変更が、動いているポータルに混ざらないようにするため。
    - **書き出す版は `origin/main`(2026-09-27 修正)。** ローカルの `main` は古いことがある。実際に、ローカル `main` が初期コミットのままの環境で `git archive main` を実行し、`README.md` だけが書き出されて `uv sync` の段で止まった。
    - 書き出す前に ref の中身を確かめ(`server/pyproject.toml` があるか)、無ければそこで止める。書き出したあとにも `server/pyproject.toml`・`web/package.json`・`config/config.example.toml` の3つを確かめる。
+   - **`install.sh` は zsh なので、`${REF}:server/…` の波括弧が必須(2026-09-27 に踏んだ)。** `"$REF:server/pyproject.toml"` と書くと、zsh が `$REF` に続く `:s` を**置換修飾子**として解釈する。区切り文字が `e` と見なされ、引数が `origin/mainct.toml` に化けて確認が必ず失敗した。変数のあとに `:` が続く箇所は、すべて波括弧で囲む。
    - 別の版を入れたいときは第2引数で渡す(`deploy/install.sh "$PWD" develop`)。
-2. `server/` で `uv sync`(ポータルの仮想環境を作る)。
-3. `web/` で `npm ci && npm run build`(`web/build/` に書き出す)。
-4. `config.toml` がなければ、見本をコピーする。
+2. `config.toml` がなければ、見本をコピーする。
+3. `app.new/` を `app/` に**入れ替える**。
+4. 入れ替えた**あと**に、`app/server` で `uv sync`、`app/web` で `npm ci && npm run build`。
+   - **仮想環境は、動かす場所で作る(2026-09-27 修正)。** `uv sync` が作るコンソールスクリプト(`uvicorn` など)は、shebang に仮想環境の**絶対パス**を焼き込む。`app.new/server` で作ってから `app/` に移すと、`bad interpreter: …/app.new/server/.venv/bin/python` で起動しなくなる(実際に踏んだ)。`pyvenv.cfg` も同じく絶対パスを持つ。
+   - そのため、入れ替えを先に済ませてから仮想環境と画面を作る。入れ替えの前に失敗したときは、動いている版がそのまま残る。
 5. plist を `~/Library/LaunchAgents/` に置き、`launchctl bootstrap` で読み込む。すでにあれば入れ替える。
 6. 初回だけ、`python -m stockportal.batch.aggregate --rebuild` を動かす。
+7. **`/api/health` が 200 を返すまで確かめる(最大20秒)。返らなければ失敗として終わる。**
+   - **ここを確かめないと、壊れていても「入れ終わりました」と出てしまう(2026-09-27 に踏んだ)。** 上の shebang の不具合のとき、スクリプトは終了コード 0 で終わったがサーバーは起動していなかった。
 
 ---
 
