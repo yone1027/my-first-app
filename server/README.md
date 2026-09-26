@@ -4,8 +4,15 @@
 
 ## 開発環境
 
-本番は `uv` が管理する Python 3.12(詳細設計書 §2.1)。手元で動かすだけなら任意の
-3.12 以降で足りる。
+本番は `uv` が管理する Python 3.12(詳細設計書 §2.1)。`uv` は公式の配布バイナリで
+入れる(`brew install uv` は bottle が無くソースからビルドになるので使わない)。
+
+```
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv python install 3.12
+```
+
+手元で動かすだけなら任意の 3.12 以降で足りる。
 
 ```
 python3 -m venv .venv                     # リポジトリの直上で

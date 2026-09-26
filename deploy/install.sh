@@ -17,8 +17,13 @@ warn() { print -P "%F{yellow}!!%f $1"; }
 
 # ---- 手順 0: 初回だけの用意(§10.3 の 0)----
 say "初回だけの用意を確かめます"
+# ~/.local/bin(公式インストーラーの置き場所)も見る
+export PATH="$HOME/.local/bin:$PATH"
 if ! command -v uv >/dev/null 2>&1; then
-  warn "uv がありません。次を実行してください: brew install uv && uv python install 3.12"
+  warn "uv がありません。次を実行してください:"
+  warn "  curl -LsSf https://astral.sh/uv/install.sh | sh"
+  warn "  uv python install 3.12"
+  warn "(brew install uv は使わない。bottle が無くソースからビルドになる。詳細設計書 §2.1)"
   exit 1
 fi
 if [[ "$(scutil --get LocalHostName 2>/dev/null)" != "stockportal" ]]; then
