@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from stockportal.readers.markdown import parse_tables, split_sections, to_number
-from stockportal.readers.picks import criteria_badges, short_code
+from stockportal.readers.picks import criteria_badges, parse_picks_md, short_code
 from stockportal.readers.screen import VERDICTS
 
 
@@ -119,3 +119,21 @@ def test_conflict_counts_as_a_buy_but_sorts_with_unknown(cfg, needs_real_data):
         for key, (verdict, _) in row["v"].items():
             if verdict == "conflict":
                 assert key == "flag-pennant"
+
+
+def test_order_prices_are_read_from_the_md(tmp_path):
+    """成績の判定と画面は md の(実際に注文する)値段を使う(§6.11)。CSV は 1,858.73 のような生の値。"""
+    md = tmp_path / "picks_20261009.md"
+    md.write_text(
+        "# 来週の買い注文の候補(基準日 2026-10-09)\n\n"
+        "- 注文の有効期間: 2026-10-13〜2026-10-16(営業日 4 日)。約定しなければ取り消す\n\n"
+        "## 1. 7267 本田技研工業(輸送用機器)\n\n"
+        "| 項目 | 値 |\n|---|---|\n"
+        "| 基準日の終値 | 1,726 円 |\n"
+        "| 買いの指値(この値段まで下がったら買う) | **1,690 円**(終値から -2.1%) |\n"
+        "| 損切り(逆指値) | 1,593 円(指値から -5.7%) |\n"
+        "| 目標(指値売り) | 1,858 円(指値から 9.9%) |\n",
+        encoding="utf-8",
+    )
+    pick = parse_picks_md(md)["picks"]["7267"]
+    assert (pick["entry_md"], pick["stop_md"], pick["target_md"]) == (1690, 1593, 1858)

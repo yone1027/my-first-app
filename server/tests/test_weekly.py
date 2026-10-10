@@ -69,9 +69,17 @@ def test_step_commands_use_the_right_python_and_folder(cfg):
     assert picks[0] == cfg.batch.python_existing
     assert cwd.name == "J-Quants"
 
+    evaluate, cwd = weekly.step_command(cfg, "2026-09-25", "evaluate")
+    assert evaluate[1:] == ["-m", "stockportal.batch.evaluate", "--as-of", "2026-09-25"]
+    assert evaluate[0] != cfg.batch.python_existing
+
     aggregate, cwd = weekly.step_command(cfg, "2026-09-25", "aggregate")
     assert aggregate[1:] == ["-m", "stockportal.batch.aggregate", "--as-of", "2026-09-25"]
     assert aggregate[0] != cfg.batch.python_existing  # ポータル側の Python
+
+
+def test_evaluate_runs_after_aggregate():
+    assert weekly.STEPS == ("candidates", "weekly_picks", "aggregate", "evaluate")
 
 
 def test_step_timeouts_come_from_the_config(cfg):
@@ -107,7 +115,7 @@ def test_status_is_written_atomically_and_readable(cfg):
 
 
 def test_steps_one_and_two_are_skipped_when_the_screen_is_not_ready(cfg, tmp_path, monkeypatch):
-    """一括分析がそろわなければ手順1・2 は skipped、手順3 だけ動かす(§4.1)。
+    """一括分析がそろわなければ手順1・2 は skipped、手順3・4 だけ動かす(§4.1)。
 
     本物の集計を走らせると開発用の出力を上書きしてしまうので、出力先を
     一時フォルダに向け、手順の実行そのものは差し替えて確かめる。
@@ -132,7 +140,8 @@ def test_steps_one_and_two_are_skipped_when_the_screen_is_not_ready(cfg, tmp_pat
     assert statuses["candidates"] == "skipped"
     assert statuses["weekly_picks"] == "skipped"
     assert statuses["aggregate"] == "ok"
-    assert ran == ["aggregate"], "飛ばした手順は動かさない"
+    assert statuses["evaluate"] == "ok"
+    assert ran == ["aggregate", "evaluate"], "飛ばした手順は動かさない"
     assert record.screen_ready_at is None
 
 

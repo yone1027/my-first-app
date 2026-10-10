@@ -7,6 +7,7 @@ from functools import cached_property
 from .config import Config
 from .readers.calendar import CalendarReader
 from .readers.candidates import CandidatesReader
+from .readers.evaluation import EvaluationReader
 from .readers.market import MarketReader
 from .readers.picks import PicksReader
 from .readers.screen import ScreenReader
@@ -42,3 +43,7 @@ class Services:
     @cached_property
     def sectors(self) -> SectorNames:
         return SectorNames(self.cfg.paths.jquants_raw)
+
+    @cached_property
+    def evaluation(self) -> EvaluationReader:
+        return EvaluationReader(self.cfg.paths.portal_data)

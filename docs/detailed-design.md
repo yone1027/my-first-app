@@ -1,6 +1,6 @@
 # 株価ポータル 詳細設計書(草案)
 
-- 版: 草案 v0.9(2026-09-27)
+- 版: 草案 v0.10(2026-10-10)
 - 変更履歴
   - v0.1 作成
   - v0.2 スプリント1の確定作業(1)。技術スタック(§2)を確定し、この Mac の実測(§2.1)と採用しなかった案(§2.2)を追記。判定ラベルの正本を `verdicts.csv` に確定し実測値に差し替え(§7.1)、売買代金の集計範囲を確定(§6.4)、`period` の既定を `13w` に、業種の太字を上位3と下位3に(§5.2・§5.6)。§12.3 を「確認してほしいこと」から「決定・反映済み」に書き換えた
@@ -10,6 +10,7 @@
   - v0.6 `pmset repeat` の引数の書式を修正(§10.1・§10.3)。曜日は `MTWRFSU` の1文字ずつ、時刻は `HH:mm:ss`。あわせて文書中の外部コマンド(`scutil`・`caffeinate`・`launchctl`・`git archive`・`StartCalendarInterval`)を man と実行で検証した
   - v0.7 実機に初めて導入して見つかった3件を修正(§10.3)。書き出す版を `origin/main` に、仮想環境は入れ替えた**あと**に作る(shebang に絶対パスが焼き込まれるため)、最後に `/api/health` で起動を確かめる。zsh の置換修飾子の落とし穴も記載
   - v0.8 主体別売買動向(§6.7)と10年国債利回り(§6.8)を実物で確認して実装。金額は千円単位、`Section` は8種類で「東証全体」は `TokyoNagoya`、公表は木曜が83%で対象週から6日後が最多。財務省の全期間 CSV は `data/` の下。ドル円は日本銀行に直接取得できる CSV が無いことが分かり、取得元を未定として記載
+  - v0.10 来週の買い注文の候補の成績(G-24)を追加。週次の処理に手順4 `evaluate` を足し(§4)、判定のルールと出力の形を §6.11 に、API を §5.2 に書いた。あわせて、集計が週の数の減少で止まる不具合(§6.10)と、基準日が毎週1週遅れる不具合(§4.2)を直した
   - v0.9 実機に入れて見つかった2件を修正。`launchctl bootout` のあとは消えるのを待ってから `bootstrap` する(§10.3)。財務省の当月の CSV は毎回取る(§6.8。全期間版は前月までしか入っていない)
 - もとにした文書
   - 基本設計書 [docs/basic-design.md](basic-design.md) v0.8
@@ -100,6 +101,9 @@
 │                 │        取引カレンダー・決算短信)                          │
 │                 ├ 取る: J-Quants 投資部門別、財務省、日本銀行、EIA         │
 │                 └ 書く: /Users/yone/StockPortal/data/market/               │
+│           4. 注文候補の成績 stockportal.batch.evaluate                     │
+│                 ├ 読む: output/selection/picks_*、J-Quants の日足         │
+│                 └ 書く: /Users/yone/StockPortal/data/evaluation/           │
 │           → 実行状況: /Users/yone/StockPortal/data/status/                 │
 │                                                                          │
 │ [launchd] com.yone.stockportal.server(新規・ログイン時に起動、落ちたら再起動)│
@@ -158,6 +162,7 @@ StockPortal/
 ├─ .env                        EIA などの API キー(J-Quants のキーは置かない)
 ├─ app/                        リポジトリの動かす版(install.sh が置く。§10.3)
 ├─ data/
+│  ├─ evaluation/              来週の買い注文の候補の成績(§6.11)
 │  ├─ market/                  市場概況の集計の結果(§6.9)
 │  ├─ raw/                     集計が新しく取るデータのキャッシュ(投資部門別・財務省・日本銀行・EIA)
 │  └─ status/                  週次の後続の処理の実行状況(§4.6)
@@ -245,13 +250,15 @@ jquants_fins_per_minute = 60
  ├─ 基準日を決める(§4.2)
  ├─ 二重起動を防ぐ(ロックファイル data/status/weekly.lock。あれば終わる)
  ├─ 一括分析の完了を待つ(§4.3)
- │     └ 3時間待ってもそろわない → 手順1・2は「skipped」、手順3だけ動かす
+ │     └ 3時間待ってもそろわない → 手順1・2は「skipped」、手順3・4だけ動かす
  ├─ 手順1 candidates.py   ─┐
- ├─ 手順2 weekly_picks.py ─┼─ 前の手順が失敗しても、次の手順は動かす(要件 §6.1)
- ├─ 手順3 市場概況の集計   ─┘
+ ├─ 手順2 weekly_picks.py ─┤
+ ├─ 手順3 市場概況の集計   ─┼─ 前の手順が失敗しても、次の手順は動かす(要件 §6.1)
+ ├─ 手順4 注文候補の成績   ─┘
  └─ 実行状況を書く(§4.6)。ロックファイルを消す
 ```
 
+- 手順4 も、手順2 が更新した日足のキャッシュを使う(§6.11)。
 - 手順3 は、手順2 が更新した株価のキャッシュを使う(要件 §6.1)。手順2 が失敗したときも手順3 は動かし、キャッシュにある週までを集計する。その週が右端に来ないときは、画面の「更新が遅れています」で分かる(§5.7)。
 
 ### 4.2 基準日の決め方
@@ -273,6 +280,7 @@ jquants_fins_per_minute = 60
 | 1 | `scripts/candidates.py --as-of <基準日>`(`/Users/yone/TechnicalAnalysis`) | 既存の anaconda | 120分 | 終了コード 0 かつ `candidates/<YYYYMMDD>/candidates.csv` がある |
 | 2 | `scripts/weekly_picks.py --as-of <基準日>`(`/Users/yone/J-Quants`) | 既存の anaconda | 180分 | 終了コード 0 かつ `selection/picks_<YYYYMMDD>.md` がある |
 | 3 | `python -m stockportal.batch.aggregate --as-of <基準日>`(`/Users/yone/StockPortal/app/server`) | ポータルの仮想環境 | 60分 | 終了コード 0 かつ `data/market/manifest.json` の `latest_week_end` が基準日 |
+| 4 | `python -m stockportal.batch.evaluate --as-of <基準日>`(`/Users/yone/StockPortal/app/server`) | ポータルの仮想環境 | 10分 | 終了コード 0 かつ `data/evaluation/picks.json` の `as_of` が基準日 |
 
 - 手順1・2 は `subprocess.run` で呼び、標準出力とエラーを、そのまま手順ごとのログに書く(§10.2)。
 - 時間の上限を超えたら、そのプロセスを止めて「timeout」とする。
@@ -329,10 +337,11 @@ jquants_fins_per_minute = 60
 | `GET /api/market/japan?period=13w` | G-11 | 売買代金のカード、TOPIX と売買代金の週足、配分、主体別(東証全体)、EPS・PER、指標 |
 | `GET /api/market/segments?period=13w` | G-12 | 区分ごとのシェアと PER、主体別(区分ごと) |
 | `GET /api/market/sectors?period=13w&scope=all` | G-13 | 業種の一覧とヒートマップ |
-| `GET /api/weekly/dates` | G-21〜G-23 | 基準日の一覧と、その週にそろっているデータ |
+| `GET /api/weekly/dates` | G-21〜G-24 | 基準日の一覧と、その週にそろっているデータ |
 | `GET /api/weekly/{date}/verdicts` | G-21 | 判定表の全行、絞り込みの選択肢、失敗した銘柄 |
 | `GET /api/weekly/{date}/verdicts/{code}` | G-21(根拠) | その銘柄の手法ごとの結果(シグナル・根拠・注意) |
-| `GET /api/weekly/{date}/picks` | G-22 | 注文の前提、候補、指値の段、参考、検証の限界 |
+| `GET /api/weekly/{date}/picks` | G-22 | 注文の前提、候補、指値の段、参考、検証の限界。候補ごとに成績(`outcome`。§6.11。まだ無ければ `null`) |
+| `GET /api/weekly/evaluation` | G-24 | 来週の買い注文の候補の成績。全期間の一覧(基準日の新しい順)と集計(§6.11) |
 | `GET /api/weekly/{date}/candidates` | G-23 | 買い候補の全行 |
 | `GET /api/search?q=...` | ヘッダー | 銘柄の候補(最大10件) |
 | `GET /api/theme` | 全画面 | `config.toml` の `[theme]`(色と書体。基本設計書 §4.8) |
@@ -707,6 +716,43 @@ jquants_fins_per_minute = 60
 3. `data/market/` を `data/market.prev/` に名前を変え、`data/market.tmp/` を `data/market/` に名前を変える。
 4. `data/market.prev/` を消す。
 - 途中で失敗したら `data/market/` はそのまま残る。サーバーは前の週までの値を出し続ける。
+
+### 6.11 来週の買い注文の候補の成績(`stockportal.batch.evaluate`。2026-10-10 追加)
+週次の処理の手順4。過去のすべての `picks_<基準日>.md` の候補について、指値で買えたか・目標と損切りのどちらに届いたかを判定する(要件 F2-4、基本設計書 §5.8)。
+
+**入力**
+- `selection_dir/picks_<YYYYMMDD>.md` と `.csv`(`readers/picks.py` で読む。基準日が `--as-of` 以前のものすべて)。
+- 注文の値段は **md の1つ目の表の値段**(「買いの指値」「損切り」「目標」の行。例: 1,690円・1,593円・1,858円)。実際に注文する値段のため(2026-10-10 決定)。CSV の `entry` などは丸める前の値で、1円ずれることがある。md から読めないときだけ CSV の値で代える。
+- 注文の有効期間は md の「注文の有効期間: A〜B」。
+- 日足は J-Quants のキャッシュ `equities__bars__daily/date=YYYY-MM-DD.json.gz` の**調整前**の `O`・`H`・`L`・`C`(読むだけ。D1)。`--as-of` より後の日は使わない。値が付かなかった日(売買停止)は、その銘柄の足に入れない。
+
+**判定のルール**(J-Quants `swing/engine.py` の `simulate_one` と同じ。指値買いだけ。環境が別なので `batch/evaluate/rules.py` に移した)
+1. 約定: 有効期間の日を順に見て、寄り付きが指値以下なら寄り付きで、安値が指値以下なら指値で約定する。一度も届かなければ「未約定」。期間がまだ終わっていなければ「注文中」。
+2. 約定した日は損切りだけを見る。約定値が損切り以下ならその値段で、安値が損切り以下なら損切りの値段で、その日に損切り。
+3. 翌営業日から、毎日この順に見る: 寄りが損切り以下 → 寄りで損切り / 寄りが目標以上 → 寄りで目標 / 安値が損切り以下 → 損切りの値段で損切り / 高値が目標以上 → 目標の値段で目標 / 保有20営業日目 → 終値で期限。**同じ日に両方に届いたら損切り**(保守的)。
+4. リターンは 決済の値段 ÷ 約定の値段 − 1。手数料は含めない。
+5. **勝ち・負けは損益の符号で決める**。期限の売りもプラスなら勝ち、そうでなければ負け(2026-10-10 決定)。決済の理由(目標・損切り・期限)は `reason` として別に持つ。
+6. 期間中に `AdjFactor` が 1 以外の日(株式分割・併合)があれば、値段を比べられないので「評価できない」にする。
+
+**状態**: `ordering`(注文中)/ `unfilled`(未約定)/ `holding`(保有中。直近の終値と含み損益)/ `win`(勝ち)/ `lose`(負け)/ `unknown`(評価できない。理由を `note` に)。
+
+**出力** `data/evaluation/picks.json`(一時ファイルに書いてから名前を変える)
+```json
+{
+  "as_of": "2026-10-09",
+  "generated_at": "2026-10-10T19:55:28+09:00",
+  "rows": [
+    {"date": "2026-10-02", "code": "6058", "name": "ベクトル", "sector_name": "サービス業", "rank": 2,
+     "entry": 2039, "stop": 1922, "target": 2242, "order_start": "2026-10-05", "order_end": "2026-10-09",
+     "p_fill": 0.62, "p_target": 0.31, "p_stop": 0.38,
+     "status": "lose", "reason": "stop", "fill_date": "2026-10-05", "fill_price": 2039,
+     "exit_date": "2026-10-08", "exit_price": 1922, "ret": -0.0574, "days_held": 3,
+     "last_date": null, "last_close": null, "note": null}
+  ]
+}
+```
+- 決済済みのものも**毎回計算し直す**(状態を持たない)。候補は週に0〜3件、読む日足は数十日分なので数秒で終わる。
+- 集計(`GET /api/weekly/evaluation` の `summary`。`readers/evaluation.py`)は件数を数えるだけ: 候補の数、約定の数と約定率(注文中と評価できないものを除く)、勝ち・負けとその理由の内訳、保有中・未約定・注文中の数、決済した注文の平均リターン、予測の平均(`p_fill`・`p_target`・`p_stop`)と実際の割合。点数や順位は作らない(R1・R2・R5)。
 
 ---
 

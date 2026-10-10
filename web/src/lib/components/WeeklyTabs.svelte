@@ -20,8 +20,15 @@
   const TABS = [
     { key: 'verdicts', label: '手法ごとの判定表', href: '/weekly/verdicts' },
     { key: 'picks', label: '来週の買い注文の候補', href: '/weekly/picks' },
-    { key: 'candidates', label: '買い候補(パターン)', href: '/weekly/candidates' }
+    { key: 'candidates', label: '買い候補(パターン)', href: '/weekly/candidates' },
+    // 成績は全期間の一覧なので基準日を持たない(G-24)
+    { key: 'evaluation', label: '注文候補の成績', href: '/weekly/evaluation' }
   ];
+  const datedTab = $derived(tab !== 'evaluation');
+
+  function tabHref(t: (typeof TABS)[number]): string {
+    return t.key === 'evaluation' || !date ? t.href : `${t.href}?date=${date}`;
+  }
 
   function move(step: number) {
     const next = list[index + step];
@@ -32,6 +39,7 @@
 <div class="row" style="margin: 10px 0">
   <h1>週次の分析結果</h1>
   <div class="grow"></div>
+  {#if datedTab}
   <div class="row" style="gap: 4px">
     <button type="button" onclick={() => move(1)} disabled={oldest || index < 0} aria-label="前の基準日">◀</button>
     <select
@@ -45,14 +53,15 @@
     </select>
     <button type="button" onclick={() => move(-1)} disabled={newest || index < 0} aria-label="次の基準日">▶</button>
   </div>
+  {/if}
 </div>
 
 <nav class="tabs" aria-label="週次のタブ">
   {#each TABS as t}
     <a
-      href={`${t.href}?date=${date}`}
+      href={tabHref(t)}
       class:on={tab === t.key}
-      class:empty={!has[t.key as keyof typeof has]}
+      class:empty={t.key !== 'evaluation' && !has[t.key as keyof typeof has]}
     >
       {t.label}{#if counts[t.key] != null}({counts[t.key]}){/if}
     </a>

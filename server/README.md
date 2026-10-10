@@ -40,7 +40,11 @@ sed -e 's#^portal_data.*#portal_data    = "'"$PWD"'/.dev/StockPortal/data"#' \
 cd server && STOCKPORTAL_CONFIG=../.dev/config.toml \
   ../.venv/bin/python -m stockportal.batch.aggregate --rebuild
 
-# 週次の後続の処理(手動。--only でやり直す手順を選べる)
+# 来週の買い注文の候補の成績(全期間を数秒で判定し直す)
+STOCKPORTAL_CONFIG=../.dev/config.toml \
+  ../.venv/bin/python -m stockportal.batch.evaluate --as-of 2026-10-09
+
+# 週次の後続の処理(手動。--only でやり直す手順を選べる。candidates / weekly_picks / aggregate / evaluate)
 STOCKPORTAL_CONFIG=../.dev/config.toml \
   ../.venv/bin/python -m stockportal.batch.weekly --as-of 2026-09-25 --only aggregate
 

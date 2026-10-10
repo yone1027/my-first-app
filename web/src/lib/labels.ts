@@ -61,3 +61,35 @@ export function tradingViewUrl(code: string): string {
   const symbol = code.length === 5 && code.endsWith('0') ? code.slice(0, 4) : code;
   return `https://jp.tradingview.com/chart/?symbol=TSE%3A${symbol}`;
 }
+
+/** 注文候補の成績の状態(§6.11)。勝ち・負けは損益の符号で決まる(期限の売りも含む)。 */
+export const OUTCOME_LABEL: Record<string, string> = {
+  ordering: '注文中',
+  unfilled: '未約定',
+  holding: '保有中',
+  win: '勝ち',
+  lose: '負け',
+  unknown: '評価できない'
+};
+
+export const REASON_LABEL: Record<string, string> = {
+  target: '目標',
+  stop: '損切り',
+  time: '期限'
+};
+
+/** 状態の文字色。勝ちは上げ、負けは下げの色。 */
+export const OUTCOME_COLOR: Record<string, string> = {
+  win: 'var(--up)',
+  lose: 'var(--down)',
+  holding: 'var(--text)',
+  ordering: 'var(--text-sub)',
+  unfilled: 'var(--text-muted)',
+  unknown: 'var(--text-muted)'
+};
+
+/** 「勝ち(目標)」のように理由を添える。 */
+export function outcomeText(status: string, reason: string | null | undefined): string {
+  const label = OUTCOME_LABEL[status] ?? status;
+  return reason && REASON_LABEL[reason] ? `${label}(${REASON_LABEL[reason]})` : label;
+}

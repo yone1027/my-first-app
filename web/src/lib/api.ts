@@ -47,6 +47,7 @@ export const api = {
     get<VerdictDetail>(`/api/weekly/${date}/verdicts/${code}`, f),
   picks: (date: string, f?: typeof fetch) => get<Picks>(`/api/weekly/${date}/picks`, f),
   candidates: (date: string, f?: typeof fetch) => get<Candidates>(`/api/weekly/${date}/candidates`, f),
+  evaluation: (f?: typeof fetch) => get<Evaluation>('/api/weekly/evaluation', f),
   search: (q: string, f?: typeof fetch) => get<SearchHit[]>(`/api/search?q=${encodeURIComponent(q)}`, f)
 };
 
@@ -154,7 +155,10 @@ export type Pick = {
   rr: number | null; confluence: number | null; confluence_names: string | null;
   p_fill: number | null; p_target: number | null; p_stop: number | null; p_time: number | null;
   ev_fill: number | null; ev_order: number | null;
+  /** md の(実際に注文する)値段。画面と成績の判定はこちらを使う(§6.11) */
+  entry_md?: number | null; stop_md?: number | null; target_md?: number | null;
   ladder: Record<string, string | number | null>[];
+  outcome?: Outcome | null;
 };
 export type Picks = {
   date: string;
@@ -183,3 +187,29 @@ export type Candidates = {
 };
 
 export type SearchHit = { code: string; name: string; market: string; in_universe: boolean };
+
+// ---- 来週の買い注文の候補の成績(§6.11)----
+export type OutcomeStatus = 'ordering' | 'unfilled' | 'holding' | 'win' | 'lose' | 'unknown';
+export type OutcomeReason = 'target' | 'stop' | 'time';
+export type Outcome = {
+  date: string; code: string; name: string | null; sector_name: string | null; rank: number | null;
+  entry: number | null; stop: number | null; target: number | null;
+  order_start: string | null; order_end: string | null;
+  p_fill: number | null; p_target: number | null; p_stop: number | null;
+  status: OutcomeStatus; reason: OutcomeReason | null;
+  fill_date: string | null; fill_price: number | null;
+  exit_date: string | null; exit_price: number | null;
+  ret: number | null; days_held: number | null;
+  last_date: string | null; last_close: number | null;
+  note: string | null;
+};
+export type EvaluationSummary = {
+  total: number;
+  count: Record<OutcomeStatus, number>;
+  reasons: Record<'win' | 'lose', Record<OutcomeReason, number>>;
+  decided: number; filled: number; fill_rate: number | null;
+  settled: number; mean_ret: number | null;
+  predicted_fill: number | null; predicted_target: number | null; predicted_stop: number | null;
+  actual_target: number | null; actual_stop: number | null;
+};
+export type Evaluation = { as_of: string; generated_at: string; summary: EvaluationSummary; rows: Outcome[] };

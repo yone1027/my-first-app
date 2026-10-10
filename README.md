@@ -17,8 +17,8 @@ J-Quants のデータを中心に、自分好みの株価データと週次の�
 | 場所 | 中身 |
 |---|---|
 | [docs/](docs/) | 要件定義書・基本設計書・詳細設計書 |
-| [server/](server/) | FastAPI のサーバー、既存の出力のリーダー、市場概況の集計、週次の後続の処理 |
-| [web/](web/) | SvelteKit の画面(市場概況3・週次3・設定1) |
+| [server/](server/) | FastAPI のサーバー、既存の出力のリーダー、市場概況の集計、注文候補の成績、週次の後続の処理 |
+| [web/](web/) | SvelteKit の画面(市場概況3・週次4・設定1) |
 | [deploy/](deploy/) | launchd の plist と `install.sh` |
 | [config/](config/) | 設定ファイルの見本 |
 

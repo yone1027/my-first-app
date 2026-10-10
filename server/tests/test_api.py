@@ -166,3 +166,20 @@ def test_each_indicator_says_which_source_is_missing(client):
     # ドル円と WTI は保留。理由はそれぞれの取得元のもの
     assert "ドル円の取得元が未定" in (by_key["usdjpy"]["not_built"] or "")
     assert "EIA_API_KEY" in (by_key["wti"]["not_built"] or "")
+
+
+def test_evaluation_lists_every_pick_with_a_summary(client, needs_real_data):
+    r = client.get("/api/weekly/evaluation")
+    if r.status_code == 404:
+        pytest.skip("成績がまだ作られていません(python -m stockportal.batch.evaluate)")
+    body = r.json()
+    assert body["rows"] and body["summary"]["total"] == len(body["rows"])
+    dates = [row["date"] for row in body["rows"]]
+    assert dates == sorted(dates, reverse=True)
+    assert "score" not in body["summary"] and "rank_score" not in body["rows"][0]
+
+
+def test_picks_carry_their_outcome(client, needs_real_data):
+    body = client.get("/api/weekly/latest/picks").json()
+    for pick in body.get("picks", []):
+        assert "outcome" in pick
