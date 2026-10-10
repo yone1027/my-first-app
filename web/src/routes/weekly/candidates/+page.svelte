@@ -7,13 +7,14 @@
   import Cautions from '$lib/components/Cautions.svelte';
   import CardState from '$lib/components/CardState.svelte';
   import WeeklyTabs from '$lib/components/WeeklyTabs.svelte';
+  import { shownDate, wantedDate } from '$lib/weekly';
   import { api, ApiFailure, type Candidates, type Dates } from '$lib/api';
   import { dec, oku, pct, price } from '$lib/format';
   import { tradingViewUrl } from '$lib/labels';
 
   const MOBILE_FIRST = 12;
 
-  const wanted = $derived(page.url.searchParams.get('date') ?? 'latest');
+  const wanted = $derived(wantedDate(page.url.searchParams.get('date')));
   let dates = $state<Dates | null>(null);
   let data = $state<Candidates | null>(null);
   let failure = $state<string | null>(null);
@@ -52,7 +53,7 @@
   const stocks = $derived(new Set(filtered.map((r) => r.code)).size);
 </script>
 
-<WeeklyTabs {dates} date={data?.date ?? ''} tab="candidates" counts={{ candidates: data?.rows.length ?? null }} />
+<WeeklyTabs {dates} date={shownDate(data?.date, wanted, dates)} tab="candidates" counts={{ candidates: data?.rows.length ?? null }} />
 <CardState error={failure} />
 
 {#if data}
