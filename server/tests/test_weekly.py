@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -16,6 +16,46 @@ def test_as_of_is_the_last_settled_week_before_today(cfg, needs_real_data):
     assert weekly.decide_as_of(cfg, datetime(2026, 9, 26, 3, 0)) == "2026-09-25"
     # 金曜の 20:00 は、その日を含めないので前の週
     assert weekly.decide_as_of(cfg, datetime(2026, 9, 25, 20, 0)) == "2026-09-18"
+
+
+def _business_days(first: str, last: str) -> list[date]:
+    day, end, out = date.fromisoformat(first), date.fromisoformat(last), []
+    while day <= end:
+        if day.weekday() < 5:
+            out.append(day)
+        day += timedelta(days=1)
+    return out
+
+
+def test_stale_calendar_cache_is_filled_from_the_api(cfg, monkeypatch):
+    """キャッシュが前の週で止まっていても、今週の金曜を選ぶ(2026-10-10 に 10-02 を選んだ)。"""
+    monkeypatch.setattr(weekly.weeks_mod, "business_days", lambda raw: _business_days("2026-09-01", "2026-10-02"))
+    asked = []
+
+    def fetch(cfg, today):
+        asked.append(today)
+        return _business_days("2026-09-19", "2026-10-09")
+
+    assert weekly.decide_as_of(cfg, datetime(2026, 10, 10, 3, 0), fetch=fetch) == "2026-10-09"
+    assert asked == [date(2026, 10, 10)]
+
+
+def test_fresh_calendar_cache_does_not_call_the_api(cfg, monkeypatch):
+    monkeypatch.setattr(weekly.weeks_mod, "business_days", lambda raw: _business_days("2026-09-01", "2026-10-30"))
+
+    def fetch(cfg, today):
+        raise AssertionError("呼ばない")
+
+    assert weekly.decide_as_of(cfg, datetime(2026, 10, 10, 3, 0), fetch=fetch) == "2026-10-09"
+
+
+def test_api_failure_falls_back_to_the_cache(cfg, monkeypatch):
+    monkeypatch.setattr(weekly.weeks_mod, "business_days", lambda raw: _business_days("2026-09-01", "2026-10-02"))
+
+    def fetch(cfg, today):
+        raise weekly.FetchError("つながらない")
+
+    assert weekly.decide_as_of(cfg, datetime(2026, 10, 10, 3, 0), fetch=fetch) == "2026-10-02"
 
 
 def test_step_commands_use_the_right_python_and_folder(cfg):
