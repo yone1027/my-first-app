@@ -6,12 +6,13 @@
   import CardState from '$lib/components/CardState.svelte';
   import Tag from '$lib/components/Tag.svelte';
   import WeeklyTabs from '$lib/components/WeeklyTabs.svelte';
+  import { shownDate, wantedDate } from '$lib/weekly';
   import { api, ApiFailure, type Dates, type MethodResult, type VerdictDetail, type Verdicts } from '$lib/api';
   import { oku } from '$lib/format';
   import { SEGMENT_LABEL, tradingViewUrl, VERDICT_LABEL } from '$lib/labels';
   import { BUY_COUNTS, compare, DEFAULT_FILTERS, filter, PAGE_SIZE, sortKey, type Filters } from '$lib/verdicts';
 
-  const wanted = $derived(page.url.searchParams.get('date') ?? 'latest');
+  const wanted = $derived(wantedDate(page.url.searchParams.get('date')));
   const wantedCode = $derived(page.url.searchParams.get('code'));
 
   let dates = $state<Dates | null>(null);
@@ -101,7 +102,7 @@
   }
 </script>
 
-<WeeklyTabs {dates} date={data?.date ?? ''} tab="verdicts" counts={{ verdicts: data?.rows.length ?? null }} />
+<WeeklyTabs {dates} date={shownDate(data?.date, wanted, dates)} tab="verdicts" counts={{ verdicts: data?.rows.length ?? null }} />
 <CardState error={failure} />
 
 {#if data}

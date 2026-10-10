@@ -164,11 +164,10 @@ def publish(portal_data: Path, files: dict[str, list[dict]], manifest: dict) -> 
 
     # 確かめる: 週が減っていないか(§6.10 の 2)
     if final.exists():
-        before = _week_count(final / "weeks.csv")
-        after = _week_count(tmp / "weeks.csv")
-        if after < before:
+        problem = check_weeks(_read_weeks(final / "weeks.csv"), _read_weeks(tmp / "weeks.csv"))
+        if problem:
             shutil.rmtree(tmp)
-            raise SystemExit(f"週の数が減りました({before} → {after})。入れ替えを中止します")
+            raise SystemExit(f"{problem}。入れ替えを中止します")
 
     if prev.exists():
         shutil.rmtree(prev)
@@ -180,11 +179,40 @@ def publish(portal_data: Path, files: dict[str, list[dict]], manifest: dict) -> 
     log.info("%s を入れ替えました", final)
 
 
-def _week_count(path: Path) -> int:
+# 古い側の週が、新しく増えた週の数よりこれだけ多く減ってもよい
+HEAD_SLACK = 2
+
+
+def check_weeks(before: list[dict], after: list[dict]) -> str | None:
+    """前回の weeks.csv と比べて、週が失われていないかを確かめる。問題があれば理由を返す。
+
+    取引カレンダーのキャッシュは契約の範囲(10年)で先頭が毎週ずれていくので、
+    いちばん古い週が落ちるのは正常(2026-10-10 に 521 → 520 で止まった)。
+    落ちてよいのは先頭だけで、数は末尾に増えた週と同じくらいまで。
+    """
+    if not before:
+        return None
+    if not after:
+        return f"週がなくなりました({len(before)} → 0)"
+    if after[-1]["week_end"] < before[-1]["week_end"]:
+        return f"いちばん新しい週が戻りました({before[-1]['week_end']} → {after[-1]['week_end']})"
+    first = after[0]["week_start"]
+    starts = {w["week_start"] for w in after}
+    missing = [w["week_start"] for w in before if w["week_start"] >= first and w["week_start"] not in starts]
+    if missing:
+        return f"途中の週が抜けました({', '.join(missing[:5])} など {len(missing)} 週)"
+    dropped = sum(1 for w in before if w["week_start"] < first)
+    added = sum(1 for w in after if w["week_end"] > before[-1]["week_end"])
+    if dropped > added + HEAD_SLACK:
+        return f"古い週が {dropped} 週減りました(増えたのは {added} 週。{before[0]['week_start']} → {first})"
+    return None
+
+
+def _read_weeks(path: Path) -> list[dict]:
     if not path.exists():
-        return 0
+        return []
     with path.open(encoding="utf-8", newline="") as fh:
-        return max(sum(1 for _ in fh) - 1, 0)
+        return list(csv.DictReader(fh))
 
 
 def main(argv: list[str] | None = None) -> int:
