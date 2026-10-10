@@ -20,6 +20,7 @@ from pathlib import Path
 
 from .. import config
 from .aggregate import weeks as weeks_mod
+from .aggregate.sources.jquants import FetchError, fetch_pages, load_api_key
 
 log = logging.getLogger("stockportal.weekly")
 
@@ -58,10 +59,22 @@ def now_text() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
-def decide_as_of(cfg: config.Config, now: datetime) -> str:
-    """今日を含めず、最終営業日の 17:00 を過ぎた、いちばん新しい週の最終営業日(§4.2)。"""
-    settled = weeks_mod.build(cfg.paths.jquants_raw, now)
+def decide_as_of(cfg: config.Config, now: datetime, fetch=None) -> str:
+    """今日を含めず、最終営業日の 17:00 を過ぎた、いちばん新しい週の最終営業日(§4.2)。
+
+    取引カレンダーのキャッシュは手順1・2 が ``--as-of`` までしか更新しないので、
+    土曜 3:00 の時点では前の週で止まっている。キャッシュだけで決めると毎週1週遅れる
+    (2026-10-03 は 09-25、10-10 は 10-02 を選んだ。一括分析は 10-09)。
+    キャッシュが前日まで届いていなければ、直近のカレンダーを API から取って補う。
+    """
+    days = weeks_mod.business_days(cfg.paths.jquants_raw)
     today = now.date()
+    if not days or days[-1] < today - timedelta(days=1):
+        try:
+            days = sorted(set(days) | set((fetch or recent_business_days)(cfg, today)))
+        except FetchError as exc:
+            log.warning("取引カレンダーを取れませんでした。キャッシュだけで決めます: %s", exc)
+    settled = weeks_mod.from_days(days, now)
     for week in reversed(settled):
         end = date.fromisoformat(week["week_end"])
         if end < today:
@@ -69,6 +82,18 @@ def decide_as_of(cfg: config.Config, now: datetime) -> str:
     if settled:
         return settled[-1]["week_end"]
     raise SystemExit("取引カレンダーのキャッシュが読めないため、基準日を決められません")
+
+
+def recent_business_days(cfg: config.Config, today: date) -> list[date]:
+    """直近3週の営業日を J-Quants から取る。キャッシュには書かない(既存のプロジェクトのもの)。"""
+    key = load_api_key(cfg.paths.jquants_env)
+    rows = fetch_pages(
+        "/markets/calendar",
+        {"from": (today - timedelta(days=21)).isoformat(), "to": today.isoformat()},
+        key,
+        cfg.api.jquants_per_minute,
+    )
+    return [date.fromisoformat(r["Date"]) for r in rows if str(r.get("HolDiv")) in weeks_mod.BUSINESS]
 
 
 def write_status(cfg: config.Config, record: RunRecord) -> None:

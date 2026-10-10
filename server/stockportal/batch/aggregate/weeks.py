@@ -25,8 +25,13 @@ def week_start(day: date) -> date:
 
 def build(jquants_raw: Path, now: datetime) -> list[dict]:
     """確定した週だけを、昇順で返す。"""
+    return from_days(business_days(jquants_raw), now)
+
+
+def from_days(days: list[date], now: datetime) -> list[dict]:
+    """営業日の一覧から、確定した週だけを昇順で返す。"""
     buckets: dict[date, list[date]] = {}
-    for day in business_days(jquants_raw):
+    for day in days:
         buckets.setdefault(week_start(day), []).append(day)
 
     weeks = []
