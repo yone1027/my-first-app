@@ -16,7 +16,7 @@ logs           = "/Users/yone/StockPortal/logs"
 python_existing = "/Users/yone/opt/anaconda3/bin/python3"   # 既存のスクリプトを呼ぶ Python
 wait_screen_max_minutes = 180
 wait_screen_poll_seconds = 60
-step_timeout_minutes = { candidates = 120, weekly_picks = 180, aggregate = 60 }
+step_timeout_minutes = { candidates = 120, weekly_picks = 180, aggregate = 60, evaluate = 10 }
 
 [aggregate]
 exclude_markets = ["0105", "0109"]   # 集計から外す市場区分。TOKYO PRO MARKET と ETF・REIT など(§6.4)

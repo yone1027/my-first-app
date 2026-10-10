@@ -7,9 +7,9 @@
   import CardState from '$lib/components/CardState.svelte';
   import WeeklyTabs from '$lib/components/WeeklyTabs.svelte';
   import { shownDate, wantedDate } from '$lib/weekly';
-  import { api, ApiFailure, type Dates, type Picks } from '$lib/api';
-  import { dec, int, pct, price, ratioPct } from '$lib/format';
-  import { tradingViewUrl } from '$lib/labels';
+  import { api, ApiFailure, type Dates, type Outcome, type Pick, type Picks } from '$lib/api';
+  import { dateWithWeekday, dec, int, pct, price, ratioPct } from '$lib/format';
+  import { OUTCOME_COLOR, outcomeText, tradingViewUrl } from '$lib/labels';
   import { loadCapital, saveCapital, shares } from '$lib/shares';
 
   const wanted = $derived(wantedDate(page.url.searchParams.get('date')));
@@ -47,6 +47,22 @@
   function onCapital(value: number | null) {
     capital = value;
     saveCapital(value);
+  }
+
+  /** 注文の値段は md の(実際に注文する)値段。CSV は丸める前の値なので1円ずれることがある(§6.11) */
+  const order = (p: Pick) => ({
+    entry: p.entry_md ?? p.entry,
+    stop: p.stop_md ?? p.stop,
+    target: p.target_md ?? p.target
+  });
+
+  /** 「結果」の行。例: 勝ち(目標)10-15(木) 決済 +9.9% */
+  function outcomeDetail(o: Outcome): string {
+    const day = (iso: string | null) => (iso ? dateWithWeekday(iso).slice(5) : '');
+    if (o.status === 'holding') return `${day(o.fill_date)} 約定 / ${day(o.last_date)} 時点 ${ratioPct(o.ret, 1, true)}(含み)`;
+    if (o.status === 'win' || o.status === 'lose') return `${day(o.exit_date)} 決済 ${ratioPct(o.ret, 1, true)}`;
+    if (o.status === 'unknown') return o.note ?? '';
+    return '';
   }
 
   const columns = (rows: Record<string, unknown>[]) => (rows.length ? Object.keys(rows[0]) : []);
@@ -105,15 +121,25 @@
   {/if}
 
   {#each data.picks as p}
+    {@const o = order(p)}
     <section class="card">
       <h2>{p.rank ?? ''}. {p.code} {p.name}{#if p.sector_name}<span class="muted">({p.sector_name})</span>{/if}</h2>
       <div class="scroll-x">
         <table>
           <tbody>
+            {#if p.outcome}
+              <tr>
+                <th>結果(<a href="/weekly/evaluation">成績の一覧</a>)</th>
+                <td style:color={OUTCOME_COLOR[p.outcome.status]}>
+                  <strong>{outcomeText(p.outcome.status, p.outcome.reason)}</strong>
+                  {outcomeDetail(p.outcome)}
+                </td>
+              </tr>
+            {/if}
             <tr><th>基準日の終値</th><td class="num">{price(p.close)} 円</td></tr>
-            <tr><th>買いの指値(この値段まで下がったら買う)</th><td class="num"><strong>{price(p.entry)} 円</strong>({p.close && p.entry ? pct((p.entry / p.close - 1) * 100, 1, true) : '—'})</td></tr>
-            <tr><th>損切り(逆指値)</th><td class="num">{price(p.stop)} 円({p.entry && p.stop ? pct((p.stop / p.entry - 1) * 100, 1, true) : '—'})</td></tr>
-            <tr><th>目標(指値売り)</th><td class="num">{price(p.target)} 円({p.entry && p.target ? pct((p.target / p.entry - 1) * 100, 1, true) : '—'})</td></tr>
+            <tr><th>買いの指値(この値段まで下がったら買う)</th><td class="num"><strong>{price(o.entry)} 円</strong>({p.close && o.entry ? pct((o.entry / p.close - 1) * 100, 1, true) : '—'})</td></tr>
+            <tr><th>損切り(逆指値)</th><td class="num">{price(o.stop)} 円({o.entry && o.stop ? pct((o.stop / o.entry - 1) * 100, 1, true) : '—'})</td></tr>
+            <tr><th>目標(指値売り)</th><td class="num">{price(o.target)} 円({o.entry && o.target ? pct((o.target / o.entry - 1) * 100, 1, true) : '—'})</td></tr>
             <tr><th>リワード ÷ リスク</th><td class="num">{dec(p.rr, 2)}</td></tr>
             <tr><th>指値の根拠(重なる支持線 {int(p.confluence)} 本)</th><td>{p.confluence_names ?? '—'}</td></tr>
             <tr><th>翌週この指値まで下がる確率</th><td class="num">{ratioPct(p.p_fill)}</td></tr>
@@ -154,7 +180,7 @@
           />
         </label>
         {#if capital}
-          {@const s = shares(capital, p.entry, p.stop)}
+          {@const s = shares(capital, o.entry, o.stop)}
           <span>
             1回のリスク上限(資金の5%){int(s.riskLimit)} 円 ÷ 指値と損切りの差 {int(s.perShare)} 円 =
             {#if s.unitShares === 0}

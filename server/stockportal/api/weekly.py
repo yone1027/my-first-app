@@ -7,6 +7,7 @@ from fastapi import APIRouter, Request
 from ..errors import NoData, NoSuchDate
 from ..readers.cache import FileNotFound
 from ..readers.candidates import METHOD_FILTERS
+from ..readers.evaluation import summarize
 from ..readers.screen import METHODS
 
 router = APIRouter(prefix="/api/weekly", tags=["weekly"])
@@ -45,6 +46,16 @@ def dates(request: Request) -> dict:
             }
         )
     return {"dates": out, "latest": out[0]["date"] if out else None}
+
+
+@router.get("/evaluation")
+def evaluation(request: Request) -> dict:
+    """来週の買い注文の候補の成績。全期間の一覧と集計(§6.11)。"""
+    data = services(request).evaluation.read()
+    if data is None:
+        raise NoData("evaluation")
+    rows = sorted(data["rows"], key=lambda r: (r["date"], -(r["rank"] or 0)), reverse=True)
+    return {"as_of": data["as_of"], "generated_at": data["generated_at"], "summary": summarize(rows), "rows": rows}
 
 
 @router.get("/{date}/verdicts")
@@ -152,6 +163,9 @@ def picks(request: Request, date: str) -> dict:
         data["header"]["validity_calendar"] = window
     elif window and not validity.get("start"):
         data["header"]["validity"] = {**validity, **window}
+    # 成績(§6.11)。バッチがまだ評価していなければ null
+    for pick in data["picks"]:
+        pick["outcome"] = svc.evaluation.outcome(date, pick["code"])
     return data
 
 

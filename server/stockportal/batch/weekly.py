@@ -25,7 +25,7 @@ from .aggregate.sources.jquants import FetchError, fetch_pages, load_api_key
 log = logging.getLogger("stockportal.weekly")
 
 CUTOFF = clock(17, 0)
-STEPS = ("candidates", "weekly_picks", "aggregate")
+STEPS = ("candidates", "weekly_picks", "aggregate", "evaluate")
 
 
 @dataclass
@@ -174,6 +174,8 @@ def step_command(cfg: config.Config, as_of: str, name: str) -> tuple[list[str], 
     if name == "aggregate":
         # ポータルの仮想環境の Python(自分と同じもの)で動かす
         return ([sys.executable, "-m", "stockportal.batch.aggregate", "--as-of", as_of], Path(__file__).resolve().parents[2])
+    if name == "evaluate":
+        return ([sys.executable, "-m", "stockportal.batch.evaluate", "--as-of", as_of], Path(__file__).resolve().parents[2])
     raise ValueError(name)
 
 
@@ -190,6 +192,14 @@ def step_succeeded(cfg: config.Config, as_of: str, name: str) -> bool:
             return False
         try:
             return json.loads(path.read_text(encoding="utf-8")).get("latest_week_end") == as_of
+        except (OSError, json.JSONDecodeError):
+            return False
+    if name == "evaluate":
+        path = cfg.paths.portal_data / "evaluation" / "picks.json"
+        if not path.exists():
+            return False
+        try:
+            return json.loads(path.read_text(encoding="utf-8")).get("as_of") == as_of
         except (OSError, json.JSONDecodeError):
             return False
     return True
@@ -221,7 +231,7 @@ def run(cfg: config.Config, as_of: str, only: str | None, wait: bool) -> RunReco
     record = RunRecord(as_of=as_of, started_at=now_text())
     targets = [only] if only else list(STEPS)
 
-    # 一括分析を待つ。そろわなければ手順1・2 は skipped、手順3 だけ動かす(§4.1)
+    # 一括分析を待つ。そろわなければ手順1・2 は skipped、手順3・4 だけ動かす(§4.1)
     ready = True
     if wait and not only:
         ready = wait_for_screen(cfg, as_of, record)

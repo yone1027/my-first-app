@@ -33,6 +33,9 @@ PREMISE = re.compile(r"前提.*?を満たした銘柄\s*([\d,]+).*?計画\s*([\d
 CRITERIA = re.compile(r"選定基準:\s*(\{.*\})")
 CONFLUENCE_NAMES = re.compile(r"指値の根拠\(重なる支持線\s*(\d+)\s*本\)")
 VALIDITY = re.compile(r"注文の有効期間:\s*(\d{4}-\d{2}-\d{2})〜(\d{4}-\d{2}-\d{2})")
+YEN = re.compile(r"([\d,]+(?:\.\d+)?)\s*円")
+# md の1つ目の表で、注文の値段が入っている行の見出しの先頭(§7.2)。画面と成績の判定はこの値段を使う
+ORDER_ROWS = {"entry_md": "買いの指値", "stop_md": "損切り", "target_md": "目標"}
 
 
 def short_code(code: str) -> str:
@@ -176,10 +179,16 @@ def _pick_section(section: Section, m: re.Match) -> dict:
     for key, value in facts.items():
         if key and key.startswith("指値の根拠"):
             confluence_names = value
+    prices = {}
+    for out, head in ORDER_ROWS.items():
+        value = next((v for k, v in facts.items() if k and k.startswith(head)), None)
+        found = YEN.search(str(value or ""))
+        prices[out] = _float(found.group(1)) if found else None
     return {
         "rank": int(m.group("rank")),
         "sector_name": (m.group("sector") or "").strip() or None,
         "confluence_names": confluence_names,
+        **prices,
         "ladder": tables[1] if len(tables) > 1 else [],
     }
 
