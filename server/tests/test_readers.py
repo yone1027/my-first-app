@@ -80,11 +80,12 @@ def test_criteria_badges_for_the_book_rules():
         "min_p_fill": 0.5, "min_rr": 3.0, "max_rr": 99.0,
         "max_risk_pct": 0.15, "min_reward_pct": 0.0, "max_reward_pct": 99.0,
         "min_confluence": 4, "limit_only": True, "chart_levels_only": True, "min_risk_atrd": 2.0,
-        "max_picks": 3, "one_per_sector": True,
+        "exclude_disc_in_hold": True, "max_picks": 3, "one_per_sector": True,
     }
     assert criteria_badges(criteria) == [
         "R:R 3以上", "目標・損切りはチャートの水準", "指値のみ", "支持線の重なり4本以上",
-        "約定確率50%以上", "損切りまで15%以内", "損切りまで日足の値動き(ATR)の2倍以上", "業種を分けて最大3銘柄",
+        "約定確率50%以上", "損切りまで15%以内", "損切りまで日足の値動き(ATR)の2倍以上",
+        "保有中に決算が入りそうな銘柄は除く", "業種を分けて最大3銘柄",
     ]
 
 

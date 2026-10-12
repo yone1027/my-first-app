@@ -129,6 +129,8 @@ def criteria_badges(criteria: dict) -> list[str]:
         badges.append(f"損切りまで{pct('max_risk_pct')}%以内")
     if take("min_risk_atrd") and criteria["min_risk_atrd"] > 0:
         badges.append(f"損切りまで日足の値動き(ATR)の{criteria['min_risk_atrd']:g}倍以上")
+    if take("exclude_disc_in_hold") and criteria["exclude_disc_in_hold"]:
+        badges.append("保有中に決算が入りそうな銘柄は除く")
     if take("max_picks", "one_per_sector"):
         label = f"最大{criteria['max_picks']:g}銘柄"
         badges.append(f"業種を分けて{label}" if criteria["one_per_sector"] else label)
