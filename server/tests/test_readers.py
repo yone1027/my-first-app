@@ -73,6 +73,21 @@ def test_criteria_badges_match_the_documented_wording():
     ]
 
 
+def test_criteria_badges_for_the_book_rules():
+    """2026-10-12 から: 目標はチャートから・R:R 3以上・損切りは ATR の2倍以上(上限 99 は札にしない)。"""
+    criteria = {
+        "min_ev_order": -9.0, "min_ev_fill": -9.0, "max_p_stop": 1.0,
+        "min_p_fill": 0.5, "min_rr": 3.0, "max_rr": 99.0,
+        "max_risk_pct": 0.15, "min_reward_pct": 0.0, "max_reward_pct": 99.0,
+        "min_confluence": 4, "limit_only": True, "chart_levels_only": True, "min_risk_atrd": 2.0,
+        "max_picks": 3, "one_per_sector": True,
+    }
+    assert criteria_badges(criteria) == [
+        "R:R 3以上", "目標・損切りはチャートの水準", "指値のみ", "支持線の重なり4本以上",
+        "約定確率50%以上", "損切りまで15%以内", "損切りまで日足の値動き(ATR)の2倍以上", "業種を分けて最大3銘柄",
+    ]
+
+
 def test_unknown_criteria_keys_are_shown_as_is():
     assert criteria_badges({"min_rr": 1.5, "max_rr": 2.0, "new_key": 42}) == ["R:R 1.5〜2.0", "new_key: 42"]
 

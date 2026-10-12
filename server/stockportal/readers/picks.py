@@ -27,6 +27,7 @@ CSV_COLUMNS = (
 # 選定基準の札の文言(§7.2)。数値は辞書から入れる。
 # 「効いていない」値のキーは札にしない(§7.2)。
 INERT = {"min_ev_order": -9.0, "min_ev_fill": -9.0, "max_p_stop": 1.0}
+NO_LIMIT = 99.0
 
 SECTION_HEAD = re.compile(r"^(?P<rank>\d+)\.\s+(?P<code>[0-9A-Z]{4,5})\s+(?P<name>.+?)(?:\((?P<sector>.+)\))?$")
 PREMISE = re.compile(r"前提.*?を満たした銘柄\s*([\d,]+).*?計画\s*([\d,]+)\s*件")
@@ -105,10 +106,19 @@ def criteria_badges(criteria: dict) -> list[str]:
         value = criteria[key] * 100
         return f"{value:g}"
 
+    # 上限 99 は「上限なし」(J-Quants の swing/select.py の既定値)
     if take("min_reward_pct", "max_reward_pct"):
-        badges.append(f"目標 +{pct('min_reward_pct')}〜{pct('max_reward_pct')}%")
+        if criteria["max_reward_pct"] < NO_LIMIT:
+            badges.append(f"目標 +{pct('min_reward_pct')}〜{pct('max_reward_pct')}%")
+        elif criteria["min_reward_pct"] > 0:
+            badges.append(f"目標 +{pct('min_reward_pct')}%以上")
     if take("min_rr", "max_rr"):
-        badges.append(f"R:R {criteria['min_rr']:.1f}〜{criteria['max_rr']:.1f}")
+        if criteria["max_rr"] < NO_LIMIT:
+            badges.append(f"R:R {criteria['min_rr']:.1f}〜{criteria['max_rr']:.1f}")
+        elif criteria["min_rr"] > 0:
+            badges.append(f"R:R {criteria['min_rr']:g}以上")
+    if take("chart_levels_only") and criteria["chart_levels_only"]:
+        badges.append("目標・損切りはチャートの水準")
     if take("limit_only") and criteria["limit_only"]:
         badges.append("指値のみ")
     if take("min_confluence"):
@@ -117,6 +127,8 @@ def criteria_badges(criteria: dict) -> list[str]:
         badges.append(f"約定確率{pct('min_p_fill')}%以上")
     if take("max_risk_pct"):
         badges.append(f"損切りまで{pct('max_risk_pct')}%以内")
+    if take("min_risk_atrd") and criteria["min_risk_atrd"] > 0:
+        badges.append(f"損切りまで日足の値動き(ATR)の{criteria['min_risk_atrd']:g}倍以上")
     if take("max_picks", "one_per_sector"):
         label = f"最大{criteria['max_picks']:g}銘柄"
         badges.append(f"業種を分けて{label}" if criteria["one_per_sector"] else label)
