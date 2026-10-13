@@ -22,7 +22,7 @@ describe('ラベル', () => {
   });
 });
 
-describe('注文候補の成績', () => {
+describe('推奨銘柄の成績', () => {
   it('6つの状態すべてに日本語と色がある', () => {
     for (const key of ['ordering', 'unfilled', 'holding', 'win', 'lose', 'unknown']) {
       expect(OUTCOME_LABEL[key]).toBeTruthy();

@@ -11,8 +11,8 @@ SvelteKit(`adapter-static`)+ TypeScript + Apache ECharts。
 | `/market/segments` | G-12 市場概況 ② 市場区分 |
 | `/market/sectors` | G-13 市場概況 ③ 業種 |
 | `/weekly/verdicts` | G-21 手法ごとの判定表 |
-| `/weekly/picks` | G-22 来週の買い注文の候補 |
-| `/weekly/candidates` | G-23 買い候補(パターン) |
+| `/weekly/picks` | G-22 来週の推奨銘柄 |
+| `/weekly/candidates` | G-23 テクニカルスクリーニング |
 | `/settings` | G-30 設定(色の上書き) |
 
 ## 開発
