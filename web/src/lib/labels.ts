@@ -62,7 +62,7 @@ export function tradingViewUrl(code: string): string {
   return `https://jp.tradingview.com/chart/?symbol=TSE%3A${symbol}`;
 }
 
-/** 注文候補の成績の状態(§6.11)。勝ち・負けは損益の符号で決まる(期限の売りも含む)。 */
+/** 推奨銘柄の成績の状態(§6.11)。勝ち・負けは損益の符号で決まる(期限の売りも含む)。 */
 export const OUTCOME_LABEL: Record<string, string> = {
   ordering: '注文中',
   unfilled: '未約定',

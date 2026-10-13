@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** G-23 週次 買い候補(パターン)(基本設計書 §5.6)。
+  /** G-23 週次 テクニカルスクリーニング(基本設計書 §5.6)。
    *  PC は最初から全件、スマホは12件(2026-09-26 確定)。 */
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
@@ -58,7 +58,7 @@
 
 {#if data}
   <section class="card">
-    <h2>買い候補 {filtered.length} 件 / {stocks} 銘柄</h2>
+    <h2>スクリーニング結果 {filtered.length} 件 / {stocks} 銘柄</h2>
     <p class="sub">
       選び方: 週足パーフェクトオーダー、直近1週の反発・上抜け、損切りは支持線の 0.5% 下、リワードは一律 +10%。
     </p>

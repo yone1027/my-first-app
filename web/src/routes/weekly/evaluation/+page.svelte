@@ -1,6 +1,6 @@
 <script lang="ts">
-  /** G-24 週次 注文候補の成績(基本設計書 §5.8)。
-   *  過去の「来週の買い注文の候補」が、指値で買えたか・目標と損切りのどちらに届いたか。
+  /** G-24 週次 推奨銘柄の成績(基本設計書 §5.8)。
+   *  過去の「来週の推奨銘柄」が、指値で買えたか・目標と損切りのどちらに届いたか。
    *  件数を数えるだけで、点数や順位は出さない(R1・R2・R5)。 */
   import Cautions from '$lib/components/Cautions.svelte';
   import CardState from '$lib/components/CardState.svelte';
@@ -49,7 +49,7 @@
     <h2>集計</h2>
     <p class="sub">{dateWithWeekday(data.as_of)} までの日足で判定 / 作成 {stamp(data.generated_at)}</p>
     <div class="stats">
-      <div><span class="k">候補</span><span class="v">{int(s.total)} 件</span></div>
+      <div><span class="k">推奨銘柄</span><span class="v">{int(s.total)} 件</span></div>
       <div>
         <span class="k">約定</span>
         <span class="v">{int(s.filled)} / {int(s.decided)} 件</span>
@@ -99,7 +99,7 @@
   </section>
 
   <section class="card">
-    <h2>候補ごとの結果</h2>
+    <h2>銘柄ごとの結果</h2>
     <div class="scroll-x">
       <table>
         <thead>

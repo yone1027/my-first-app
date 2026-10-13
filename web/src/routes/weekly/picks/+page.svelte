@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** G-22 週次 来週の買い注文の候補(基本設計書 §5.5)。 */
+  /** G-22 週次 来週の推奨銘柄(基本設計書 §5.5)。 */
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { onMount } from 'svelte';
@@ -117,7 +117,7 @@
   </section>
 
   {#if data.picks.length === 0}
-    <section class="card"><h2>今週は見送り</h2><p class="sub">基準を満たす候補がありませんでした。件数を揃えるために基準は緩めません。</p></section>
+    <section class="card"><h2>今週は見送り</h2><p class="sub">基準を満たす銘柄がなかったため、今週の推奨銘柄はありません。件数を揃えるために基準は緩めません。</p></section>
   {/if}
 
   {#each data.picks as p}
