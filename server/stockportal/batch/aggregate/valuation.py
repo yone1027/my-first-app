@@ -23,6 +23,69 @@ FY_PREFIX = "FYFinancialStatements"
 # 配当だけの修正は、どちらの項目も空なので読み飛ばす
 SKIP_DOCTYPES = {"DividendForecastRevision", "REITEarnForecastRevision"}
 
+# 株数(MktCap ÷ 終値)がこの倍率を超えて変わったら、分割の調整係数と合っているかを確かめる
+SHARES_JUMP = 1.5
+
+
+def _consistent(shares: float, expected: float) -> bool:
+    return expected > 0 and 1 / SHARES_JUMP < shares / expected < SHARES_JUMP
+
+
+class SplitGuard:
+    """J-Quants の ``MktCap`` が、株式分割の数日後に分割の比率をもう一度かけた値になることへの備え。
+
+    2026-09-29 の分割(東京エレクトロン 1:5 など)で、10/1〜10/5 の ``MktCap`` が5倍になっていた
+    (J-Quants から取り直しても同じ。10/9 には直っている)。前の週の株数を、間の日の ``AdjFactor`` で
+    割り戻した株数と比べ、合わなければその株数で計算し直す。直すのは間に分割があった銘柄だけで、
+    分割と同じ時期に株数が本当に変わったときも、2週続けて同じ株数なら J-Quants の値を正とする。
+    """
+
+    def __init__(self, bars: dict[date, Path]):
+        self._bars = bars
+        self._days = sorted(bars)
+        self._adj: dict[date, dict[str, float]] = {}
+        self._shares: dict[str, tuple[float, date]] = {}   # 銘柄 → (株数, その日)
+        self._pending: dict[str, float] = {}               # 前の週に直した銘柄 → J-Quants の株数
+        self.fixed: list[tuple[date, str]] = []
+
+    def _adj_of(self, day: date) -> dict[str, float]:
+        if day not in self._adj:
+            found = {}
+            for row in rows_of(self._bars[day]):
+                factor = to_float(row.get("AdjFactor"))
+                if factor and factor != 1.0:
+                    found[str(row.get("Code", "")).strip()] = factor
+            self._adj[day] = found
+        return self._adj[day]
+
+    def _adj_product(self, code: str, after: date, upto: date) -> float:
+        product = 1.0
+        for day in self._days:
+            if after < day <= upto:
+                product *= self._adj_of(day).get(code, 1.0)
+        return product
+
+    def mktcap(self, code: str, mktcap: float, close: float | None, day: date) -> float:
+        """その日の時価総額(百万円)。株数が分割の調整と合わなければ直した値。"""
+        if not close or close <= 0:
+            return mktcap
+        shares = mktcap / close
+        ref = self._shares.get(code)
+        if ref is not None and not _consistent(shares, ref[0]):
+            product = self._adj_product(code, ref[1], day)
+            expected = ref[0] / product
+            # 分割が無いのに株数が変わったのは、第三者割当などの本当の変化(2026-09-09 の日本板硝子)
+            if product != 1.0 and not _consistent(shares, expected):
+                seen = self._pending.get(code)
+                if seen is None or not _consistent(shares, seen):
+                    self._pending[code] = shares
+                    self.fixed.append((day, code))
+                    self._shares[code] = (expected, day)
+                    return expected * close
+        self._pending.pop(code, None)
+        self._shares[code] = (shares, day)
+        return mktcap
+
 
 def _disclosed_at(row: dict) -> datetime | None:
     day = str(row.get("DiscDate") or "").strip()
@@ -76,6 +139,7 @@ def aggregate(
 
     bars = by_date(jquants_raw / "equities__bars__daily")
     master = MasterIndex(jquants_raw / "equities__master")
+    guard = SplitGuard(bars)
     excluded = set(exclude_markets)
     topix_close = {r["week_end"]: r["close"] for r in topix_rows}
 
@@ -109,6 +173,7 @@ def aggregate(
             mktcap = to_float(row.get("MktCap"))
             if mktcap is None:
                 continue
+            mktcap = guard.mktcap(code, mktcap, to_float(row.get("C")), last_day)
             info = snapshot.get(code)
             if info is None or info["mkt"] in excluded:
                 continue
@@ -144,4 +209,7 @@ def aggregate(
                     "eps": eps,
                 }
             )
+    if guard.fixed:
+        log.info("時価総額を株数の食い違いで直した: %d 件(例: %s)", len(guard.fixed),
+                 ", ".join(f"{d} {c}" for d, c in guard.fixed[-5:]))
     return out

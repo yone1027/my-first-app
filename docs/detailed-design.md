@@ -1,6 +1,6 @@
 # 株価ポータル 詳細設計書(草案)
 
-- 版: 草案 v0.11(2026-10-12)
+- 版: 草案 v0.12(2026-10-19)
 - 変更履歴
   - v0.1 作成
   - v0.2 スプリント1の確定作業(1)。技術スタック(§2)を確定し、この Mac の実測(§2.1)と採用しなかった案(§2.2)を追記。判定ラベルの正本を `verdicts.csv` に確定し実測値に差し替え(§7.1)、売買代金の集計範囲を確定(§6.4)、`period` の既定を `13w` に、業種の太字を上位3と下位3に(§5.2・§5.6)。§12.3 を「確認してほしいこと」から「決定・反映済み」に書き換えた
@@ -13,6 +13,7 @@
   - v0.10 来週の買い注文の候補の成績(G-24)を追加。週次の処理に手順4 `evaluate` を足し(§4)、判定のルールと出力の形を §6.11 に、API を §5.2 に書いた。あわせて、集計が週の数の減少で止まる不具合(§6.10)と、基準日が毎週1週遅れる不具合(§4.2)を直した
   - v0.9 実機に入れて見つかった2件を修正。`launchctl bootout` のあとは消えるのを待ってから `bootstrap` する(§10.3)。財務省の当月の CSV は毎回取る(§6.8。全期間版は前月までしか入っていない)
   - v0.11 選定基準の札に、本書どおりの基準(`chart_levels_only`・`min_risk_atrd`・`exclude_disc_in_hold`、上限 99 は札にしない)を追加(§7.2)
+  - v0.12 株式分割の直後に J-Quants の `MktCap` が分割の比率を二重にかけた値になることへの備えを、PER の時価総額に足した(§6.6)。`to=` が同じキャッシュが複数あるときは範囲の長いものを読むようにした(§6.1)
 - もとにした文書
   - 基本設計書 [docs/basic-design.md](basic-design.md) v0.8
   - 要件定義書 [docs/requirements.md](requirements.md) v0.40
@@ -507,8 +508,8 @@ jquants_fins_per_minute = 60
 |---|---|---|
 | 株価四本値(全銘柄。`Va`・`MktCap`) | `jquants_raw/equities__bars__daily/date=YYYY-MM-DD.json.gz` | `{"fetched_at", "path", "params", "data": [{Date, Code, …, Va, MktCap, …}]}` |
 | 上場銘柄一覧(区分 `Mkt`/`MktNm`、`S33`) | `jquants_raw/equities__master/date=YYYY-MM-DD.json.gz` | 同上。**週に1回程度**の日付で保存されている(2016-11 から 884 件) |
-| TOPIX | `jquants_raw/indices__bars__daily__topix/` のうち `to=` がいちばん新しいファイル | `data: [{Date, O, H, L, C}]` |
-| 取引カレンダー | `jquants_raw/markets__calendar/` のうち `to=` がいちばん新しいファイル | `data: [{Date, HolDiv}]` |
+| TOPIX | `jquants_raw/indices__bars__daily__topix/` のうち `to=` がいちばん新しいファイル(同じなら `from=` が古い、範囲の長いもの) | `data: [{Date, O, H, L, C}]` |
+| 取引カレンダー | `jquants_raw/markets__calendar/` のうち `to=` がいちばん新しいファイル(同じなら `from=` が古い、範囲の長いもの) | `data: [{Date, HolDiv}]` |
 | 決算短信 | `jquants_raw/fins__summary/date=YYYY-MM-DD.json.gz` | `data: [{DiscDate, DiscTime, Code, DocType, CurPerType, FNP, NxFNp, …}]` |
 | 投資部門別情報 | J-Quants `/equities/investor-types` を**集計が取る**。キャッシュは `portal_data/raw/investor_types/` | §6.7 |
 | 国債利回り(10年) | 財務省 `jgbcm_all.csv`(履歴)・`jgbcm.csv`(当月)を取る。キャッシュは `portal_data/raw/mof/` | §6.8 |
@@ -600,6 +601,12 @@ jquants_fins_per_minute = 60
 - 時価総額 = その週の最終営業日の `MktCap`。
   - **`MktCap` の単位は百万円(2026-09-26 確定)。** `verdicts.csv` の「時価総額(億円)」と6銘柄で突き合わせ、`MktCap ÷ 100 = 億円` が比 1.0000 で一致した。`FNP`・`NxFNp` は**円**の文字列(例: 平和堂 `'9800000000'` = 98億円)。
   - したがって `時価総額(円) = MktCap × 1_000_000`。PER はこれを利益の合計(円)で割る。
+  - **株式分割の直後の食い違いを直す(2026-10-19 追加)。** 2026-09-29 の分割(東京エレクトロン 1:5 など)で、10/1〜10/5 の `MktCap` が分割の比率をもう一度かけた値(5倍など)になっていた。J-Quants から取り直しても同じで、10/9 には直っている。このため 10/2 の週の PER が 19.9(前後の週は 18.2〜18.3)になっていた。
+    - 銘柄ごとに、前に見た週の株数(`MktCap ÷ C`)を持ち回す。今週の株数がその 1.5 倍を超えて変わったら、間の日の `AdjFactor` で割り戻した株数と比べる。
+    - それとも 1.5 倍を超えて食い違えば、割り戻した株数 × 終値を時価総額とする(`SplitGuard`)。
+    - 直すのは、間に分割(`AdjFactor ≠ 1`)があった銘柄だけ。第三者割当などで株数が本当に変わった銘柄(2026-09-09 の日本板硝子、3.6倍)は直さない。
+    - 分割と同じ時期に株数が本当に変わったときに直し続けないよう、2週続けて同じ株数なら J-Quants の値を正とする。
+    - 10年分を作り直すと15件が直り、目に見えて変わったのは 10/2 の週だけだった(PER 19.90 → 18.13。ほかは 0.05 以内)。
 - 対象銘柄について、週・区分(`all` と3つの区分)ごとに、`mktcap_sum`・`np_sum`・`n_target`・`n_excluded_loss` を出す。
 - `per = mktcap_sum ÷ np_sum`。`eps = TOPIX の週の終値 ÷ per`(`all` だけ)。
 - 集計の対象から外す銘柄は、§6.4 と同じにする。
@@ -874,7 +881,7 @@ jquants_fins_per_minute = 60
 - 同じ銘柄が複数の手法で出たときも、行をまとめない。
 
 ### 7.4 取引カレンダー(`readers/calendar.py`)
-- 集計と同じく `jquants_raw/markets__calendar/` の、`to=` がいちばん新しいファイルを読む。
+- 集計と同じく `jquants_raw/markets__calendar/` の、`to=` がいちばん新しいファイルを読む(同じなら範囲の長いもの)。
 - 使うところ: 基準日の曜日、注文の有効期間(F1-5)、`expected_week_end`(§5.7)。
 - カレンダーの `to=` が今日より前で、翌週の営業日が分からないときは、注文の有効期間を md の行から出す。
 

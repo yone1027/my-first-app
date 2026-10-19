@@ -17,20 +17,30 @@ from .cache import FileCache, FileNotFound
 log = logging.getLogger(__name__)
 
 # 1 銘柄だけのファイルが混ざるフォルダがあるので、名前の先頭から見る(§6.1)
-TO_DATE = re.compile(r"^from=\S*?to=(\d{4}-\d{2}-\d{2})")
+TO_DATE = re.compile(r"^from=(\d{4}-\d{2}-\d{2})\S*?to=(\d{4}-\d{2}-\d{2})")
 # HolDiv: 1 = 営業日、2 = 半日立会(営業日に数える。§6.3)
 BUSINESS = {"1", "2"}
 CUTOFF = time(17, 0)  # 17:00ルール
 
 
+
+def _longer_or_newer(m: re.Match, best: tuple[str, ...]) -> bool:
+    """``to=`` が新しい方。同じなら ``from=`` が古い(範囲が長い)方。
+
+    短い範囲のカレンダーが同じ ``to=`` で置かれることがある(2026-10-19 に、一括分析の試しの実行が
+    数週分だけのファイルを残し、週の一覧が5週になった)。
+    """
+    start, end = m.groups()
+    return end > best[1] or (end == best[1] and start < best[0])
+
 def newest_by_to(directory: Path) -> Path:
     """``to=`` がいちばん新しいファイル。無ければ FileNotFound。"""
-    best: tuple[str, Path] | None = None
+    best: tuple[tuple[str, ...], Path] | None = None
     if directory.is_dir():
         for child in directory.iterdir():
             m = TO_DATE.match(child.name)
-            if m and (best is None or m.group(1) > best[0]):
-                best = (m.group(1), child)
+            if m and (best is None or _longer_or_newer(m, best[0])):
+                best = (m.groups(), child)
     if best is None:
         raise FileNotFound(directory)
     return best[1]
