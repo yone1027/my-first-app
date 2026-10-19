@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 # 同じフォルダに 1 銘柄だけの "code=85080_date=YYYY-MM-DD.json.gz" が混ざっているので、
 # 名前が date= で**始まる**ものだけを採る(2026-09-26 に実物で確認)。
 DATE_FILE = re.compile(r"^date=(\d{4}-\d{2}-\d{2})")
-TO_DATE = re.compile(r"^from=\S*?to=(\d{4}-\d{2}-\d{2})")
+TO_DATE = re.compile(r"^from=(\d{4}-\d{2}-\d{2})\S*?to=(\d{4}-\d{2}-\d{2})")
 
 
 def rows_of(path: Path) -> list[dict]:
@@ -44,16 +44,26 @@ def by_date(directory: Path) -> dict[date, Path]:
     return found
 
 
+
+def _longer_or_newer(m: re.Match, best: tuple[str, ...]) -> bool:
+    """``to=`` が新しい方。同じなら ``from=`` が古い(範囲が長い)方。
+
+    短い範囲のカレンダーが同じ ``to=`` で置かれることがある(2026-10-19 に、一括分析の試しの実行が
+    数週分だけのファイルを残し、週の一覧が5週になった)。
+    """
+    start, end = m.groups()
+    return end > best[1] or (end == best[1] and start < best[0])
+
 def newest_by_to(directory: Path) -> Path | None:
     """``to=`` がいちばん新しいファイル(TOPIX・カレンダー用)。"""
-    best: tuple[str, Path] | None = None
+    best: tuple[tuple[str, ...], Path] | None = None
     if not directory.is_dir():
         log.warning("キャッシュのフォルダがありません: %s", directory)
         return None
     for child in directory.iterdir():
         m = TO_DATE.match(child.name)
-        if m and (best is None or m.group(1) > best[0]):
-            best = (m.group(1), child)
+        if m and (best is None or _longer_or_newer(m, best[0])):
+            best = (m.groups(), child)
     return best[1] if best else None
 
 
