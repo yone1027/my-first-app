@@ -7,9 +7,14 @@ export function isPhone(): boolean {
   return typeof window !== 'undefined' && window.innerWidth <= PHONE_MAX_WIDTH;
 }
 
-/** 週の横軸の文字。"07/20〜07/24" のうち、スマホでは週の初めの日だけにする。 */
+/** "07/20" → "7/20"(月と日の頭の 0 を落とす。2026-10-19)。 */
+export function shortMonthDay(text: string): string {
+  return text.replace(/(^|[^\d])0(\d)/g, '$1$2');
+}
+
+/** 週の横軸の文字。"07/20〜07/24" は "7/20〜7/24"、スマホでは週の初めの日 "7/20" だけにする。 */
 export function weekTick(label: string, phone: boolean): string {
-  return phone ? label.split('〜')[0] : label;
+  return shortMonthDay(phone ? label.split('〜')[0] : label);
 }
 
 /**
