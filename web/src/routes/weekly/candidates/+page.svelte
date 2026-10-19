@@ -74,7 +74,7 @@
 
   <section class="card">
     <div class="scroll-x">
-      <table>
+      <table class="stack">
         <thead>
           <tr>
             <th class="num">順位</th>
@@ -95,19 +95,19 @@
         <tbody>
           {#each shown as r}
             <tr>
-              <td class="num">{r.rank}</td>
-              <td>{r.code}</td>
-              <td><a href={tradingViewUrl(r.code)} target="_blank" rel="noopener noreferrer">{r.name}</a></td>
-              <td class="num">{oku(r.market_cap_oku)}</td>
-              <td>{r.method}</td>
-              <td>{r.level}</td>
-              <td class="num">{price(r.entry, 1)}</td>
-              <td>{r.stop_line}</td>
-              <td class="num">{price(r.stop, 1)}</td>
-              <td class="num">{pct(r.hold_pct)} / {r.touches ?? '—'}</td>
-              <td class="num">{pct(r.risk_pct, 2)}</td>
-              <td class="num">{pct(r.reward_pct, 1)}</td>
-              <td class="num">{dec(r.rr, 2)}</td>
+              <td class="num lead">{r.rank}.</td>
+              <td class="lead">{r.code}</td>
+              <td class="lead"><a href={tradingViewUrl(r.code)} target="_blank" rel="noopener noreferrer">{r.name}</a></td>
+              <td class="num" data-label="時価総額(億円)">{oku(r.market_cap_oku)}</td>
+              <td data-label="手法">{r.method}</td>
+              <td data-label="水準">{r.level}</td>
+              <td class="num" data-label="想定の買値">{price(r.entry, 1)}</td>
+              <td data-label="損切りの支持線">{r.stop_line}</td>
+              <td class="num" data-label="損切り価格">{price(r.stop, 1)}</td>
+              <td class="num" data-label="支持線の守った割合 / 触れた回数">{pct(r.hold_pct)} / {r.touches ?? '—'}</td>
+              <td class="num" data-label="リスク">{pct(r.risk_pct, 2)}</td>
+              <td class="num" data-label="リワード">{pct(r.reward_pct, 1)}</td>
+              <td class="num" data-label="リスクリワード">{dec(r.rr, 2)}</td>
             </tr>
           {/each}
         </tbody>

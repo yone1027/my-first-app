@@ -2,6 +2,7 @@
   /** G-21 週次 手法ごとの判定表(基本設計書 §5.4)。 */
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
+  import { onMount } from 'svelte';
   import Cautions from '$lib/components/Cautions.svelte';
   import CardState from '$lib/components/CardState.svelte';
   import Tag from '$lib/components/Tag.svelte';
@@ -23,6 +24,12 @@
   let openCode = $state<string | null>(null);
   let detail = $state<VerdictDetail | null>(null);
   let detailMethod = $state<string>('granville');
+  // 絞り込みは、PC では開いたまま、スマホでは畳んでおく(一覧をすぐ見られるように。2026-10-19)
+  let filtersOpen = $state(true);
+
+  onMount(() => {
+    filtersOpen = window.innerWidth >= 768;
+  });
 
   $effect(() => {
     api.dates().then((d) => (dates = d)).catch(() => (dates = null));
@@ -114,9 +121,9 @@
   </div>
 
   <!-- (2) 絞り込み -->
-  <section class="card">
-    <h2>絞り込み</h2>
-    <div class="row" style="margin-bottom: 10px">
+  <details class="card fold" bind:open={filtersOpen}>
+    <summary><h2>絞り込み</h2><span class="muted">該当 {shown.length} / {data.rows.length} 銘柄</span></summary>
+    <div class="row" style="margin: 10px 0">
       <span class="muted" style="min-width: 120px">買い判定の数(以上)</span>
       {#each BUY_COUNTS as c}
         <button type="button" aria-pressed={filters.buyCount === c.value} onclick={() => { filters.buyCount = c.value; pageNo = 1; }}>
@@ -164,12 +171,12 @@
       <strong>該当 {shown.length} 銘柄 / {data.rows.length}</strong>
     </div>
     <p class="muted">買い判定の数は絞り込みのためだけに数える。列や点数としては出さない。</p>
-  </section>
+  </details>
 
   <!-- (3) 判定表 -->
   <section class="card">
     <div class="scroll-x">
-      <table>
+      <table class="stack">
         <thead>
           <tr>
             <th>コード</th>
@@ -183,17 +190,19 @@
         <tbody>
           {#each slice as row}
             <tr>
-              <td>{row.code}</td>
-              <td><a href={tradingViewUrl(row.code)} target="_blank" rel="noopener noreferrer">{row.name}</a></td>
-              <td>{SEGMENT_LABEL[row.market] ?? row.market}</td>
-              <td class="num">{oku(row.market_cap_oku)}</td>
+              <td class="lead">{row.code}</td>
+              <td class="lead"><a href={tradingViewUrl(row.code)} target="_blank" rel="noopener noreferrer">{row.name}</a></td>
+              <td data-label="市場">{SEGMENT_LABEL[row.market] ?? row.market}</td>
+              <td class="num" data-label="時価総額(億円)">{oku(row.market_cap_oku)}</td>
               {#each data.methods as m}
-                <td>
-                  <Tag verdict={row.v[m.key]?.[0]} />
-                  <div class="muted phase">{row.v[m.key]?.[1] ?? ''}</div>
+                <td data-label={m.timeframe ? `${m.label}(${m.timeframe})` : m.label}>
+                  <div class="verdict">
+                    <Tag verdict={row.v[m.key]?.[0]} />
+                    <div class="muted phase">{row.v[m.key]?.[1] ?? ''}</div>
+                  </div>
                 </td>
               {/each}
-              <td>
+              <td class="action">
                 <button type="button" onclick={() => open(row.code)} aria-expanded={openCode === row.code}>
                   {openCode === row.code ? '閉じる' : '根拠'}
                 </button>
@@ -277,6 +286,16 @@
 
 <style>
   label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-sub); }
+  @media (max-width: 767px) {
+    /* 絞り込みの項目は1行に1つ。選ぶ欄は横幅いっぱいに */
+    label { display: flex; width: 100%; font-size: 14px; }
+    label select { flex: 1 1 auto; min-width: 0; }
+    label input { flex: 1 1 0; min-width: 0; width: auto !important; }
+    .verdict { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+    .phase { max-width: none; font-size: 13px; }
+    td.action button { width: 100%; margin-top: 6px; }
+    tr.detail td { display: block; }
+  }
   .phase { font-size: 11px; max-width: 200px; white-space: normal; }
   tr.detail td { background: var(--surface-alt); white-space: normal; }
   .part { margin-bottom: 12px; }

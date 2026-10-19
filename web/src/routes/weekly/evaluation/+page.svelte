@@ -101,7 +101,7 @@
   <section class="card">
     <h2>銘柄ごとの結果</h2>
     <div class="scroll-x">
-      <table>
+      <table class="stack">
         <thead>
           <tr>
             <th>基準日</th><th>銘柄</th>
@@ -112,15 +112,15 @@
         <tbody>
           {#each data.rows as r (r.date + r.code)}
             <tr>
-              <td>{shortDate(r.date)}</td>
-              <td><a href={`/weekly/picks?date=${r.date}`}>{r.code} {r.name ?? ''}</a></td>
-              <td class="num">{price(r.entry)}</td>
-              <td class="num">{price(r.stop)}</td>
-              <td class="num">{price(r.target)}</td>
-              <td style:color={OUTCOME_COLOR[r.status]} title={r.note ?? ''}><strong>{outcomeText(r.status, r.reason)}</strong></td>
-              <td>{r.fill_date ? `${shortDate(r.fill_date)} ${price(r.fill_price)}` : '—'}</td>
-              <td>{exitText(r)}</td>
-              <td class="num">
+              <td class="lead">{shortDate(r.date)}</td>
+              <td class="lead"><a href={`/weekly/picks?date=${r.date}`}>{r.code} {r.name ?? ''}</a></td>
+              <td class="num" data-label="指値">{price(r.entry)}</td>
+              <td class="num" data-label="損切り">{price(r.stop)}</td>
+              <td class="num" data-label="目標">{price(r.target)}</td>
+              <td data-label="結果" style:color={OUTCOME_COLOR[r.status]} title={r.note ?? ''}><strong>{outcomeText(r.status, r.reason)}</strong></td>
+              <td data-label="約定">{r.fill_date ? `${shortDate(r.fill_date)} ${price(r.fill_price)}` : '—'}</td>
+              <td data-label="決済">{exitText(r)}</td>
+              <td class="num" data-label="リターン">
                 {ratioPct(r.ret, 1, true)}{#if r.status === 'holding'}<span class="muted">(含み)</span>{/if}
               </td>
             </tr>

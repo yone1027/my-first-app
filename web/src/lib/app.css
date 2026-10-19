@@ -103,9 +103,53 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .notice { background: var(--surface-alt); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: 10px 12px; color: var(--text-sub); }
 .notice--warn { border-color: var(--up); color: var(--up); }
 
+/* ---- 折りたたみ(スマホの絞り込みなど)---- */
+details.fold > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; min-height: 44px; }
+details.fold > summary::-webkit-details-marker { display: none; }
+details.fold > summary::after { content: '▾'; color: var(--text-muted); }
+details.fold[open] > summary::after { content: '▴'; }
+details.fold > summary h2 { margin: 0; }
+
 /* ---- スマホ(768px 未満。基本設計書 §4.2)---- */
 @media (max-width: 767px) {
+  body { font-size: 15px; }
   .page { padding: 10px; }
-  .card { padding: 12px; }
-  h1 { font-size: 17px; }
+  .card { padding: 12px; margin-bottom: 10px; }
+  h1 { font-size: 18px; }
+  h2 { font-size: 17px; }
+  h3 { font-size: 15px; }
+  .muted, .cautions li { font-size: 13px; }
+  table { font-size: 14px; }
+  .tag { font-size: 13px; }
+  /* 16px 未満の入力欄は、iPhone が押したときに画面を拡大してしまう */
+  button, select, input { font-size: 16px; }
+
+  /* 表を「1行 = 1枚のカード」にする。値の前に列名(data-label)を出す(2026-10-19) */
+  table.stack, table.stack tbody, table.stack tr, table.stack td { display: block; width: 100%; }
+  table.stack thead { display: none; }
+  table.stack tr {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    background: var(--surface);
+  }
+  table.stack td {
+    border: 0;
+    padding: 3px 0;
+    white-space: normal;
+    text-align: left;
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+  }
+  table.stack td[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 38%;
+    color: var(--text-sub);
+    font-size: 13px;
+  }
+  table.stack td.lead { display: inline-block; width: auto; margin-right: 8px; font-weight: 700; font-size: 16px; }
+  table.stack td:empty { display: none; }
+  .scroll-x:has(> table.stack) { overflow-x: visible; }
 }

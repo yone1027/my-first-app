@@ -105,4 +105,9 @@
   .tabs a.empty { color: var(--text-muted); }
   .tabs.sub { border-bottom: none; margin-top: calc(-1 * var(--gap) + 4px); }
   .tabs.sub a { min-height: 40px; padding: 8px 12px; font-size: 0.95em; }
+  @media (max-width: 767px) {
+    /* タブは折り返さず1行に並べ、はみ出す分は横に送る */
+    .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .tabs a { white-space: nowrap; padding: 8px 10px; }
+  }
 </style>

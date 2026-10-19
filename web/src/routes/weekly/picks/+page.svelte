@@ -125,7 +125,7 @@
     <section class="card">
       <h2>{p.rank ?? ''}. {p.code} {p.name}{#if p.sector_name}<span class="muted">({p.sector_name})</span>{/if}</h2>
       <div class="scroll-x">
-        <table>
+        <table class="kv">
           <tbody>
             {#if p.outcome}
               <tr>
@@ -154,11 +154,11 @@
         <h3>同じ銘柄の指値の段</h3>
         <p class="muted">来週どこまで下がりそうか。各段で期待値が最大の損切り・目標の組み合わせ。</p>
         <div class="scroll-x">
-          <table>
+          <table class="stack">
             <thead><tr>{#each columns(p.ladder) as c}<th class:num={c !== '支持線'}>{c}</th>{/each}</tr></thead>
             <tbody>
               {#each p.ladder as step}
-                <tr>{#each columns(p.ladder) as c}<td class:num={c !== '支持線'}>{cellText(c, step[c])}</td>{/each}</tr>
+                <tr>{#each columns(p.ladder) as c}<td class:num={c !== '支持線'} data-label={c}>{cellText(c, step[c])}</td>{/each}</tr>
               {/each}
             </tbody>
           </table>
@@ -200,10 +200,10 @@
     <section class="card">
       <h2>参考: 期待値の上位の銘柄と、基準で落ちた理由</h2>
       <div class="scroll-x">
-        <table>
+        <table class="stack">
           <thead><tr>{#each columns(data.reference) as c}<th>{c}</th>{/each}</tr></thead>
           <tbody>
-            {#each data.reference as r}<tr>{#each columns(data.reference) as c}<td class:num={typeof r[c] === 'number'}>{cellText(c, r[c])}</td>{/each}</tr>{/each}
+            {#each data.reference as r}<tr>{#each columns(data.reference) as c, i}<td class:num={typeof r[c] === 'number'} class:lead={i === 0} data-label={i === 0 ? undefined : c}>{cellText(c, r[c])}</td>{/each}</tr>{/each}
           </tbody>
         </table>
       </div>
@@ -216,10 +216,10 @@
       <ul>{#each data.limits.bullets as line}<li>{line}</li>{/each}</ul>
       {#if data.limits.table.length}
         <div class="scroll-x">
-          <table>
+          <table class="stack">
             <thead><tr>{#each columns(data.limits.table) as c}<th>{c}</th>{/each}</tr></thead>
             <tbody>
-              {#each data.limits.table as r}<tr>{#each columns(data.limits.table) as c}<td class:num={typeof r[c] === 'number'}>{cellText(c, r[c])}</td>{/each}</tr>{/each}
+              {#each data.limits.table as r}<tr>{#each columns(data.limits.table) as c, i}<td class:num={typeof r[c] === 'number'} class:lead={i === 0} data-label={i === 0 ? undefined : c}>{cellText(c, r[c])}</td>{/each}</tr>{/each}
             </tbody>
           </table>
         </div>
@@ -232,4 +232,10 @@
   .badge { background: var(--surface-alt); border: 1px solid var(--border-strong); border-radius: 999px; padding: 3px 10px; font-size: 12px; }
   label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-sub); }
   th { white-space: normal; }
+  @media (max-width: 767px) {
+    /* 銘柄ごとの表(項目 | 値)は2列のまま。項目の列を細めにして値を読みやすく */
+    .kv th { width: 45%; font-weight: 400; background: transparent; }
+    .kv td { white-space: normal; }
+    label { font-size: 14px; }
+  }
 </style>
