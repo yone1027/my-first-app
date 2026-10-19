@@ -1,6 +1,7 @@
 <script lang="ts">
   /** 主体別売買動向(基本設計書 §5.1 (5)・§5.2 (3)、詳細設計書 §8.4)。
    *  積み上げ棒(買い越しは0より上、売り越しは0より下)に TOPIX の線を重ねる。 */
+  import { weekAxisLabel } from '$lib/chart';
   import Chart from './Chart.svelte';
   import CardState from './CardState.svelte';
   import type { Investors, Series, Week } from '../api';
@@ -95,7 +96,7 @@
       xAxis: {
         type: 'category' as const,
         data: labels,
-        axisLabel: { color: text, fontSize: 10, interval: Math.ceil(labels.length / 7) }
+        axisLabel: weekAxisLabel(text)
       },
       yAxis: [
         {

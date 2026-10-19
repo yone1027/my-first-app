@@ -1,6 +1,7 @@
 <script lang="ts">
   /** G-12 市場概況 ② 市場区分(基本設計書 §5.2)。
    *  3区分分を最初に受け取り、切り替えでは API を呼び直さない(§8.3)。 */
+  import { weekAxisLabel } from '$lib/chart';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import Cautions from '$lib/components/Cautions.svelte';
@@ -45,7 +46,7 @@
       animation: false,
       textStyle: { fontFamily: cssValue('--font-family', 'sans-serif'), color: text },
       grid: { left: 52, right: 52, top: 20, bottom: 40 },
-      xAxis: { type: 'category' as const, data: labels, axisLabel: { color: text, fontSize: 10, interval: Math.ceil(labels.length / 7) } },
+      xAxis: { type: 'category' as const, data: labels, axisLabel: weekAxisLabel(text) },
       yAxis: [
         { type: 'value' as const, name: 'シェア(%)', nameTextStyle: { fontSize: 10, color: text }, scale: true, splitLine: { lineStyle: { color: cssValue('--border') } }, axisLabel: { color: text, fontSize: 10 } },
         { type: 'value' as const, name: '売買代金', nameTextStyle: { fontSize: 10, color: text }, splitLine: { show: false }, axisLabel: { color: text, fontSize: 10, formatter: (v: number) => `${(v / 1e12).toFixed(0)}兆` } }

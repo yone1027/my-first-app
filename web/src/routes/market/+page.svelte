@@ -1,5 +1,6 @@
 <script lang="ts">
   /** G-11 市場概況 ① 日本市場(基本設計書 §5.1)。 */
+  import { weekAxisLabel } from '$lib/chart';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import Cautions from '$lib/components/Cautions.svelte';
@@ -63,7 +64,7 @@
       ],
       xAxis: [
         { type: 'category' as const, data: labels, gridIndex: 0, axisLabel: { show: false }, axisLine: { lineStyle: { color: cssValue('--border-strong') } } },
-        { type: 'category' as const, data: labels, gridIndex: 1, axisLabel: { color: text, fontSize: 10, interval: Math.ceil(labels.length / 7) }, axisLine: { lineStyle: { color: cssValue('--border-strong') } } }
+        { type: 'category' as const, data: labels, gridIndex: 1, axisLabel: weekAxisLabel(text), axisLine: { lineStyle: { color: cssValue('--border-strong') } } }
       ],
       yAxis: [
         { type: 'value' as const, gridIndex: 0, scale: true, splitLine: { lineStyle: { color: cssValue('--border') } }, axisLabel: { color: text, fontSize: 10 } },
