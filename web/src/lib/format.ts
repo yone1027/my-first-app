@@ -77,23 +77,49 @@ export function price(value: number | null | undefined, digits = 0): string {
 
 const WEEKDAYS = ['月', '火', '水', '木', '金', '土', '日'];
 
-/** 2026-09-18(金)。*/
-export function dateWithWeekday(iso: string | null | undefined): string {
+/** 今年なら 9/18(金)、ほかの年なら 2025/9/18(木)。*/
+export function dateWithWeekday(iso: string | null | undefined, today: Date = new Date()): string {
   if (!iso) return DASH;
   const d = new Date(iso + 'T00:00:00+09:00');
-  return `${iso}(${WEEKDAYS[(d.getDay() + 6) % 7]})`;
+  return `${dateShort(iso, today)}(${WEEKDAYS[(d.getDay() + 6) % 7]})`;
 }
 
-/** 09/14〜09/18。*/
+/** 2026-09-08 → 9/8(年は付けない。2026-10-20)。*/
+export function monthDay(iso: string | null | undefined): string {
+  if (!iso) return DASH;
+  return `${Number(iso.slice(5, 7))}/${Number(iso.slice(8, 10))}`;
+}
+
+/** 2026-09-18 → 9/18(金)。*/
+export function monthDayWeekday(iso: string | null | undefined): string {
+  if (!iso) return DASH;
+  const d = new Date(iso + 'T00:00:00+09:00');
+  return `${monthDay(iso)}(${WEEKDAYS[(d.getDay() + 6) % 7]})`;
+}
+
+/** 今年なら 9/8、ほかの年なら 2025/9/8(年をまたぐかもしれない日付に使う)。*/
+export function dateShort(iso: string | null | undefined, today: Date = new Date()): string {
+  if (!iso) return DASH;
+  if (!/^\d{4}-\d{2}-\d{2}/.test(iso)) return iso;
+  const year = Number(iso.slice(0, 4));
+  return year === today.getFullYear() ? monthDay(iso) : `${year}/${monthDay(iso)}`;
+}
+
+/** 文の中の 2026-09-08 を dateShort の書き方にする。*/
+export function datesInText(text: string | null | undefined, today: Date = new Date()): string {
+  return (text ?? '').replace(/\d{4}-\d{2}-\d{2}/g, (iso) => dateShort(iso, today));
+}
+
+/** 9/14〜9/18。*/
 export function weekRange(start: string | null | undefined, end: string | null | undefined): string {
   if (!start || !end) return DASH;
-  return `${start.slice(5).replace('-', '/')}〜${end.slice(5).replace('-', '/')}`;
+  return `${monthDay(start)}〜${monthDay(end)}`;
 }
 
-/** 2026-09-26T04:52:10+09:00 → 2026-09-26 04:52。*/
-export function stamp(iso: string | null | undefined): string {
+/** 2026-09-26T04:52:10+09:00 → 9/26 04:52(ほかの年なら 2025/9/26 04:52)。*/
+export function stamp(iso: string | null | undefined, today: Date = new Date()): string {
   if (!iso) return DASH;
-  return iso.slice(0, 10) + ' ' + iso.slice(11, 16);
+  return dateShort(iso.slice(0, 10), today) + ' ' + iso.slice(11, 16);
 }
 
 export { DASH, MINUS };

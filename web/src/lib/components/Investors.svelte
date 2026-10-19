@@ -1,10 +1,11 @@
 <script lang="ts">
   /** 主体別売買動向(基本設計書 §5.1 (5)・§5.2 (3)、詳細設計書 §8.4)。
    *  積み上げ棒(買い越しは0より上、売り越しは0より下)に TOPIX の線を重ねる。 */
+  import { weekAxisLabel } from '$lib/chart';
   import Chart from './Chart.svelte';
   import CardState from './CardState.svelte';
   import type { Investors, Series, Week } from '../api';
-  import { cho, dec, weekRange } from '../format';
+  import { cho, dec, monthDay, weekRange } from '../format';
   import { INVESTOR_LABEL, INVESTOR_ORDER } from '../labels';
   import { cssValue } from '../theme';
 
@@ -91,11 +92,11 @@
     return {
       animation: false,
       textStyle: { fontFamily: cssValue('--font-family', 'sans-serif'), color: text },
-      grid: { left: 58, right: 62, top: 16, bottom: 40 },
+      grid: { left: 58, right: 62, top: 32, bottom: 40 },
       xAxis: {
         type: 'category' as const,
         data: labels,
-        axisLabel: { color: text, fontSize: 10, interval: Math.ceil(labels.length / 7) }
+        axisLabel: weekAxisLabel(text)
       },
       yAxis: [
         {
@@ -175,8 +176,7 @@
     {/if}
     {#if investors.latest_published}
       <p class="muted">
-        最新は {weekRange(null, investors.latest_published.end)?.replace('—', '')}
-        {investors.latest_published.end} までの週の分({investors.latest_published.pub_date} 公表)。
+        最新は {monthDay(investors.latest_published.end)} までの週の分({monthDay(investors.latest_published.pub_date)} 公表)。
         対象の週の翌週に公表されるため、株価より1週以上遅れる。
       </p>
     {/if}
@@ -184,7 +184,7 @@
     <Chart {option} height={280} />
 
     <div class="scroll-x">
-      <table>
+      <table class="stack">
         <thead>
           <tr>
             <th>主体(押すと表示を切り替え)</th>
@@ -197,16 +197,16 @@
           {#each INVESTOR_ORDER as key}
             {@const s = byKey.get(key)}
             <tr class:off={!shown.has(key)}>
-              <td>
+              <td class="lead">
                 <button type="button" class="pick" onclick={() => toggle(key)} aria-pressed={shown.has(key)}>
                   <span class="swatch" class:hollow={!shown.has(key)} style="background: var(--investor-{INVESTOR_ORDER.indexOf(key)}); border-color: var(--investor-{INVESTOR_ORDER.indexOf(key)})"></span>
                   {INVESTOR_LABEL[key]}
                   {#if NOTES[key]}<span class="muted">({NOTES[key]})</span>{/if}
                 </button>
               </td>
-              <td class="num">{cho(s?.total ?? null, 2)}</td>
-              <td class="num">{cho(s?.avg_recent ?? null, 2)}</td>
-              <td class="num">{cho(s?.avg_period ?? null, 2)}</td>
+              <td class="num" data-label="期間の買い越し額">{cho(s?.total ?? null, 2)}</td>
+              <td class="num" data-label="1週あたり: 直近{recent}週">{cho(s?.avg_recent ?? null, 2)}</td>
+              <td class="num" data-label="1週あたり: 期間">{cho(s?.avg_period ?? null, 2)}</td>
             </tr>
           {/each}
         </tbody>

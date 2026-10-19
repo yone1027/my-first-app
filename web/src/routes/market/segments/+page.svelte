@@ -1,6 +1,7 @@
 <script lang="ts">
   /** G-12 市場概況 ② 市場区分(基本設計書 §5.2)。
    *  3区分分を最初に受け取り、切り替えでは API を呼び直さない(§8.3)。 */
+  import { weekAxisLabel } from '$lib/chart';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import Cautions from '$lib/components/Cautions.svelte';
@@ -44,8 +45,8 @@
     return {
       animation: false,
       textStyle: { fontFamily: cssValue('--font-family', 'sans-serif'), color: text },
-      grid: { left: 52, right: 52, top: 20, bottom: 40 },
-      xAxis: { type: 'category' as const, data: labels, axisLabel: { color: text, fontSize: 10, interval: Math.ceil(labels.length / 7) } },
+      grid: { left: 52, right: 52, top: 32, bottom: 40 },
+      xAxis: { type: 'category' as const, data: labels, axisLabel: weekAxisLabel(text) },
       yAxis: [
         { type: 'value' as const, name: 'シェア(%)', nameTextStyle: { fontSize: 10, color: text }, scale: true, splitLine: { lineStyle: { color: cssValue('--border') } }, axisLabel: { color: text, fontSize: 10 } },
         { type: 'value' as const, name: '売買代金', nameTextStyle: { fontSize: 10, color: text }, splitLine: { show: false }, axisLabel: { color: text, fontSize: 10, formatter: (v: number) => `${(v / 1e12).toFixed(0)}兆` } }
@@ -98,7 +99,7 @@
   <section class="card">
     <h2>区分ごとのシェアと評価</h2>
     <div class="scroll-x">
-      <table>
+      <table class="stack">
         <thead>
           <tr>
             <th>市場区分</th>
@@ -114,16 +115,16 @@
         <tbody>
           {#each data.segments as s}
             <tr>
-              <td><span class="swatch" style="background: var(--{s.segment})"></span> {SEGMENT_LABEL[s.segment]}</td>
-              <td class="num">{pct(s.share_latest, 2)}</td>
-              <td class="num">{pct(s.share_avg_period, 2)}</td>
-              <td class="num" style="color: {(s.period_average_ratio ?? 0) >= 0 ? 'var(--up)' : 'var(--down)'}">
+              <td class="lead"><span class="swatch" style="background: var(--{s.segment})"></span> {SEGMENT_LABEL[s.segment]}</td>
+              <td class="num" data-label="直近のシェア">{pct(s.share_latest, 2)}</td>
+              <td class="num" data-label="期間の平均">{pct(s.share_avg_period, 2)}</td>
+              <td class="num" data-label="期間平均比" style="color: {(s.period_average_ratio ?? 0) >= 0 ? 'var(--up)' : 'var(--down)'}">
                 {pct(s.period_average_ratio, 1, true)}
               </td>
-              <td class="num">{cho(s.turnover.at(-1))}</td>
-              <td class="num">{times(s.per.at(-1), 1)}</td>
-              <td class="num">{pct(s.np_change_pct, 1, true)}</td>
-              <td class="num">{s.n_target ?? '—'}</td>
+              <td class="num" data-label="直近の売買代金">{cho(s.turnover.at(-1))}</td>
+              <td class="num" data-label="PER">{times(s.per.at(-1), 1)}</td>
+              <td class="num" data-label="利益の合計の変化">{pct(s.np_change_pct, 1, true)}</td>
+              <td class="num" data-label="対象銘柄">{s.n_target ?? '—'}</td>
             </tr>
           {/each}
         </tbody>

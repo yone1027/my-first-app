@@ -136,7 +136,16 @@
   .hits .code { font-variant-numeric: tabular-nums; color: var(--text-sub); }
   .stamps { margin-top: 4px; gap: 12px; }
   @media (max-width: 767px) {
-    .finder input { min-width: 120px; }
+    /* 1段目: 名前と画面の切り替え、2段目: 検索(横幅いっぱい)と設定、3段目: データの時点 */
+    header { padding: 6px 10px; }
+    header > .row { gap: 6px 12px; }
+    header .grow { display: none; }
     h1 { font-size: 16px; }
+    nav a { padding: 8px 6px; }
+    .finder { flex: 1 1 auto; }
+    .finder input { min-width: 0; width: 100%; }
+    .hits { left: 0; right: auto; min-width: 100%; }
+    .stamps { gap: 0 10px; margin-top: 2px; }
+    .stamps .muted { font-size: 12px; }
   }
 </style>

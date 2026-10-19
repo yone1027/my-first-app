@@ -1,5 +1,6 @@
 <script lang="ts">
   /** G-11 市場概況 ① 日本市場(基本設計書 §5.1)。 */
+  import { weekAxisLabel } from '$lib/chart';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import Cautions from '$lib/components/Cautions.svelte';
@@ -9,7 +10,7 @@
   import Investors from '$lib/components/Investors.svelte';
   import PeriodPicker from '$lib/components/PeriodPicker.svelte';
   import { api, ApiFailure, type Japan } from '$lib/api';
-  import { cho, dec, pct, pt, rank, times, weekRange } from '$lib/format';
+  import { cho, dateShort, dec, pct, pt, rank, times, weekRange } from '$lib/format';
   import { INDICATOR_LABEL, SEGMENT_LABEL } from '$lib/labels';
   import { cssValue } from '$lib/theme';
 
@@ -63,7 +64,7 @@
       ],
       xAxis: [
         { type: 'category' as const, data: labels, gridIndex: 0, axisLabel: { show: false }, axisLine: { lineStyle: { color: cssValue('--border-strong') } } },
-        { type: 'category' as const, data: labels, gridIndex: 1, axisLabel: { color: text, fontSize: 10, interval: Math.ceil(labels.length / 7) }, axisLine: { lineStyle: { color: cssValue('--border-strong') } } }
+        { type: 'category' as const, data: labels, gridIndex: 1, axisLabel: weekAxisLabel(text), axisLine: { lineStyle: { color: cssValue('--border-strong') } } }
       ],
       yAxis: [
         { type: 'value' as const, gridIndex: 0, scale: true, splitLine: { lineStyle: { color: cssValue('--border') } }, axisLabel: { color: text, fontSize: 10 } },
@@ -192,7 +193,7 @@
               <span class="muted">期間で {ind.key === 'jgb10y' ? pct(ind.change, 3, true) + 'pt' : pct(ind.change, 1, true)}</span>
             </div>
             <Chart option={sparkline(ind.values)} height={70} />
-            <p class="muted">最終観測 {ind.last_obs ?? '—'}</p>
+            <p class="muted">最終観測 {dateShort(ind.last_obs)}</p>
           {/if}
         </div>
       {/each}

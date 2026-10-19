@@ -8,7 +8,7 @@
   import WeeklyTabs from '$lib/components/WeeklyTabs.svelte';
   import { shownDate, wantedDate } from '$lib/weekly';
   import { api, ApiFailure, type Dates, type Outcome, type Pick, type Picks } from '$lib/api';
-  import { dateWithWeekday, dec, int, pct, price, ratioPct } from '$lib/format';
+  import { datesInText, dec, monthDay, monthDayWeekday, int, pct, price, ratioPct } from '$lib/format';
   import { OUTCOME_COLOR, outcomeText, tradingViewUrl } from '$lib/labels';
   import { loadCapital, saveCapital, shares } from '$lib/shares';
 
@@ -56,9 +56,9 @@
     target: p.target_md ?? p.target
   });
 
-  /** 「結果」の行。例: 勝ち(目標)10-15(木) 決済 +9.9% */
+  /** 「結果」の行。例: 勝ち(目標)10/15(木) 決済 +9.9% */
   function outcomeDetail(o: Outcome): string {
-    const day = (iso: string | null) => (iso ? dateWithWeekday(iso).slice(5) : '');
+    const day = (iso: string | null) => (iso ? monthDayWeekday(iso) : '');
     if (o.status === 'holding') return `${day(o.fill_date)} 約定 / ${day(o.last_date)} 時点 ${ratioPct(o.ret, 1, true)}(含み)`;
     if (o.status === 'win' || o.status === 'lose') return `${day(o.exit_date)} 決済 ${ratioPct(o.ret, 1, true)}`;
     if (o.status === 'unknown') return o.note ?? '';
@@ -69,8 +69,8 @@
 
   /** md の「注文の有効期間: …」の行から、見出しの重複を取る。 */
   function validityText(v: { start?: string; end?: string; text?: string }): string {
-    const text = v.text ?? (v.start && v.end ? `${v.start}〜${v.end}` : '');
-    return text.replace(/^注文の有効期間:\s*/, '');
+    const text = v.text ?? (v.start && v.end ? `${monthDay(v.start)}〜${monthDay(v.end)}` : '');
+    return datesInText(text).replace(/^注文の有効期間:\s*/, '');
   }
 
   /** Markdown の表を読むときに % を外して数にしているので、表示で付け直す(§7.2)。 */
@@ -101,7 +101,7 @@
     {/if}
     {#if data.header.validity_calendar}
       <p class="notice notice--warn">
-        取引カレンダーでは {data.header.validity_calendar.start}〜{data.header.validity_calendar.end} です。
+        取引カレンダーでは {monthDay(data.header.validity_calendar.start)}〜{monthDay(data.header.validity_calendar.end)} です。
         表示は分析の出力(md)に合わせています。
       </p>
     {/if}
@@ -112,7 +112,7 @@
     <div class="row" style="gap: 6px">
       {#each data.header.criteria_badges as badge}<span class="badge">{badge}</span>{/each}
     </div>
-    {#if data.header.model}<p class="muted">{data.header.model}</p>{/if}
+    {#if data.header.model}<p class="muted">{datesInText(data.header.model)}</p>{/if}
     <Cautions />
   </section>
 
@@ -125,7 +125,7 @@
     <section class="card">
       <h2>{p.rank ?? ''}. {p.code} {p.name}{#if p.sector_name}<span class="muted">({p.sector_name})</span>{/if}</h2>
       <div class="scroll-x">
-        <table>
+        <table class="kv">
           <tbody>
             {#if p.outcome}
               <tr>
@@ -154,11 +154,11 @@
         <h3>同じ銘柄の指値の段</h3>
         <p class="muted">来週どこまで下がりそうか。各段で期待値が最大の損切り・目標の組み合わせ。</p>
         <div class="scroll-x">
-          <table>
+          <table class="stack">
             <thead><tr>{#each columns(p.ladder) as c}<th class:num={c !== '支持線'}>{c}</th>{/each}</tr></thead>
             <tbody>
               {#each p.ladder as step}
-                <tr>{#each columns(p.ladder) as c}<td class:num={c !== '支持線'}>{cellText(c, step[c])}</td>{/each}</tr>
+                <tr>{#each columns(p.ladder) as c}<td class:num={c !== '支持線'} data-label={c}>{cellText(c, step[c])}</td>{/each}</tr>
               {/each}
             </tbody>
           </table>
@@ -200,10 +200,10 @@
     <section class="card">
       <h2>参考: 期待値の上位の銘柄と、基準で落ちた理由</h2>
       <div class="scroll-x">
-        <table>
+        <table class="stack">
           <thead><tr>{#each columns(data.reference) as c}<th>{c}</th>{/each}</tr></thead>
           <tbody>
-            {#each data.reference as r}<tr>{#each columns(data.reference) as c}<td class:num={typeof r[c] === 'number'}>{cellText(c, r[c])}</td>{/each}</tr>{/each}
+            {#each data.reference as r}<tr>{#each columns(data.reference) as c, i}<td class:num={typeof r[c] === 'number'} class:lead={i === 0} data-label={i === 0 ? undefined : c}>{cellText(c, r[c])}</td>{/each}</tr>{/each}
           </tbody>
         </table>
       </div>
@@ -216,10 +216,10 @@
       <ul>{#each data.limits.bullets as line}<li>{line}</li>{/each}</ul>
       {#if data.limits.table.length}
         <div class="scroll-x">
-          <table>
+          <table class="stack">
             <thead><tr>{#each columns(data.limits.table) as c}<th>{c}</th>{/each}</tr></thead>
             <tbody>
-              {#each data.limits.table as r}<tr>{#each columns(data.limits.table) as c}<td class:num={typeof r[c] === 'number'}>{cellText(c, r[c])}</td>{/each}</tr>{/each}
+              {#each data.limits.table as r}<tr>{#each columns(data.limits.table) as c, i}<td class:num={typeof r[c] === 'number'} class:lead={i === 0} data-label={i === 0 ? undefined : c}>{cellText(c, r[c])}</td>{/each}</tr>{/each}
             </tbody>
           </table>
         </div>
@@ -232,4 +232,10 @@
   .badge { background: var(--surface-alt); border: 1px solid var(--border-strong); border-radius: 999px; padding: 3px 10px; font-size: 12px; }
   label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-sub); }
   th { white-space: normal; }
+  @media (max-width: 767px) {
+    /* 銘柄ごとの表(項目 | 値)は2列のまま。項目の列を細めにして値を読みやすく */
+    .kv th { width: 45%; font-weight: 400; background: transparent; }
+    .kv td { white-space: normal; }
+    label { font-size: 14px; }
+  }
 </style>
