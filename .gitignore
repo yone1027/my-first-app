@@ -15,3 +15,6 @@ __pycache__/
 web/node_modules/
 web/build/
 web/.svelte-kit/
+
+# Cloudflare(wrangler の作業フォルダ)
+cloud/.wrangler/

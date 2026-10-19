@@ -85,6 +85,8 @@ say "server で uv sync します"
 (cd "$APP/server" && uv sync --quiet)
 say "web で npm ci && npm run build します"
 (cd "$APP/web" && npm ci --silent && npm run build --silent)
+say "cloud で npm ci します(クラウド版に送る wrangler)"
+(cd "$APP/cloud" && npm ci --silent)
 rm -rf "$APP.old"
 
 # ---- 手順 5: launchd ----
@@ -136,4 +138,19 @@ else
   warn "  tail -30 $ROOT/logs/server.log"
   warn "  launchctl print gui/$(id -u)/com.yone.stockportal.server | head -30"
   exit 1
+fi
+
+# ---- 手順 8: クラウド版に送る([cloud] enabled のときだけ。詳細設計書 §13)----
+# 画面を変えたときに、土曜を待たずにクラウドにも反映する
+PY="$APP/server/.venv/bin/python"
+export STOCKPORTAL_CONFIG=$ROOT/config.toml
+if (cd "$APP/server" && "$PY" -c 'import sys; from stockportal import config; sys.exit(0 if config.load().cloud.enabled else 1)'); then
+  latest=$(cd "$APP/server" && "$PY" -c 'from stockportal import config; from stockportal.deps import Services; d = Services(config.load()).screen.dates(); print(d[0] if d else "")')
+  say "クラウド版に送ります(基準日 $latest。ログ: $ROOT/logs/publish.log)"
+  if (cd "$APP/server" && "$PY" -m stockportal.batch.publish --as-of "$latest") >> "$ROOT/logs/publish.log" 2>&1; then
+    say "クラウド版に送りました"
+  else
+    warn "クラウド版に送れませんでした。tail -30 $ROOT/logs/publish.log を見てください"
+    exit 1
+  fi
 fi

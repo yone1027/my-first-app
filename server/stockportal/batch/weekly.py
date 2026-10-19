@@ -25,7 +25,7 @@ from .aggregate.sources.jquants import FetchError, fetch_pages, load_api_key
 log = logging.getLogger("stockportal.weekly")
 
 CUTOFF = clock(17, 0)
-STEPS = ("candidates", "weekly_picks", "aggregate", "evaluate")
+STEPS = ("candidates", "weekly_picks", "aggregate", "evaluate", "publish")
 
 
 @dataclass
@@ -176,6 +176,8 @@ def step_command(cfg: config.Config, as_of: str, name: str) -> tuple[list[str], 
         return ([sys.executable, "-m", "stockportal.batch.aggregate", "--as-of", as_of], Path(__file__).resolve().parents[2])
     if name == "evaluate":
         return ([sys.executable, "-m", "stockportal.batch.evaluate", "--as-of", as_of], Path(__file__).resolve().parents[2])
+    if name == "publish":
+        return ([sys.executable, "-m", "stockportal.batch.publish", "--as-of", as_of], Path(__file__).resolve().parents[2])
     raise ValueError(name)
 
 
@@ -202,6 +204,8 @@ def step_succeeded(cfg: config.Config, as_of: str, name: str) -> bool:
             return json.loads(path.read_text(encoding="utf-8")).get("as_of") == as_of
         except (OSError, json.JSONDecodeError):
             return False
+    if name == "publish":
+        return (cfg.paths.status_dir / f"publish_{compact}.json").exists()
     return True
 
 
@@ -238,6 +242,13 @@ def run(cfg: config.Config, as_of: str, only: str | None, wait: bool) -> RunReco
     write_status(cfg, record)
 
     for name in targets:
+        if name == "publish" and not cfg.cloud.enabled:
+            # クラウド版を使わない設定では動かさない(§13)
+            step = record.step(name)
+            step.status = "skipped"
+            step.started_at = step.finished_at = now_text()
+            write_status(cfg, record)
+            continue
         if not ready and name in ("candidates", "weekly_picks"):
             step = record.step(name)
             step.status = "skipped"

@@ -1,6 +1,6 @@
 # 株価ポータル 詳細設計書(草案)
 
-- 版: 草案 v0.12(2026-10-19)
+- 版: 草案 v0.13(2026-10-19)
 - 変更履歴
   - v0.1 作成
   - v0.2 スプリント1の確定作業(1)。技術スタック(§2)を確定し、この Mac の実測(§2.1)と採用しなかった案(§2.2)を追記。判定ラベルの正本を `verdicts.csv` に確定し実測値に差し替え(§7.1)、売買代金の集計範囲を確定(§6.4)、`period` の既定を `13w` に、業種の太字を上位3と下位3に(§5.2・§5.6)。§12.3 を「確認してほしいこと」から「決定・反映済み」に書き換えた
@@ -13,6 +13,7 @@
   - v0.10 来週の買い注文の候補の成績(G-24)を追加。週次の処理に手順4 `evaluate` を足し(§4)、判定のルールと出力の形を §6.11 に、API を §5.2 に書いた。あわせて、集計が週の数の減少で止まる不具合(§6.10)と、基準日が毎週1週遅れる不具合(§4.2)を直した
   - v0.9 実機に入れて見つかった2件を修正。`launchctl bootout` のあとは消えるのを待ってから `bootstrap` する(§10.3)。財務省の当月の CSV は毎回取る(§6.8。全期間版は前月までしか入っていない)
   - v0.11 選定基準の札に、本書どおりの基準(`chart_levels_only`・`min_risk_atrd`・`exclude_disc_in_hold`、上限 99 は札にしない)を追加(§7.2)
+  - v0.13 クラウド版(Cloudflare Pages)を追加(§13)。週次の処理に手順5 `publish` を足した
   - v0.12 株式分割の直後に J-Quants の `MktCap` が分割の比率を二重にかけた値になることへの備えを、PER の時価総額に足した(§6.6)。`to=` が同じキャッシュが複数あるときは範囲の長いものを読むようにした(§6.1)
 - もとにした文書
   - 基本設計書 [docs/basic-design.md](basic-design.md) v0.8
@@ -256,7 +257,8 @@ jquants_fins_per_minute = 60
  ├─ 手順1 candidates.py   ─┐
  ├─ 手順2 weekly_picks.py ─┤
  ├─ 手順3 市場概況の集計   ─┼─ 前の手順が失敗しても、次の手順は動かす(要件 §6.1)
- ├─ 手順4 注文候補の成績   ─┘
+ ├─ 手順4 注文候補の成績   ─┤
+ ├─ 手順5 クラウド版に送る ─┘ [cloud] enabled のときだけ(§13)。そうでなければ skipped
  └─ 実行状況を書く(§4.6)。ロックファイルを消す
 ```
 
@@ -283,6 +285,7 @@ jquants_fins_per_minute = 60
 | 2 | `scripts/weekly_picks.py --as-of <基準日>`(`/Users/yone/J-Quants`) | 既存の anaconda | 180分 | 終了コード 0 かつ `selection/picks_<YYYYMMDD>.md` がある |
 | 3 | `python -m stockportal.batch.aggregate --as-of <基準日>`(`/Users/yone/StockPortal/app/server`) | ポータルの仮想環境 | 60分 | 終了コード 0 かつ `data/market/manifest.json` の `latest_week_end` が基準日 |
 | 4 | `python -m stockportal.batch.evaluate --as-of <基準日>`(`/Users/yone/StockPortal/app/server`) | ポータルの仮想環境 | 10分 | 終了コード 0 かつ `data/evaluation/picks.json` の `as_of` が基準日 |
+| 5 | `python -m stockportal.batch.publish --as-of <基準日>`(`/Users/yone/StockPortal/app/server`) | ポータルの仮想環境 | 30分 | 終了コード 0 かつ `data/status/publish_<YYYYMMDD>.json` がある(§13.3) |
 
 - 手順1・2 は `subprocess.run` で呼び、標準出力とエラーを、そのまま手順ごとのログに書く(§10.2)。
 - 時間の上限を超えたら、そのプロセスを止めて「timeout」とする。
@@ -1199,3 +1202,75 @@ jquants_fins_per_minute = 60
 6. ~~`picks_*.csv` の `p_*`・`ev_*` の単位~~ → **2026-09-26 確定: どれも割合(0〜1)**(§7.2)。画面で100倍して % にする。
 7. `results.jsonl` で `status` が `ok` でないときの、失敗の理由の項目名(§7.1)。
 8. 旧区分(東証1部・2部・マザーズ・JASDAQ)の `Mkt` のコードの一覧(§6.4)。
+
+## 13. クラウド版(Cloudflare Pages。2026-10-19 追加。要件定義書 §6.2 案A')
+
+家の外から本人だけが見られるように、Mac で画面用の JSON を作って Cloudflare Pages に載せる。画面(`web/`)は作り直さない。呼ぶ URL も応答の形も、Mac のポータルと同じにする。
+
+```
+[Mac] 週次の後続の処理 … candidates → weekly_picks → aggregate → evaluate → publish(§13.2)
+[Cloudflare Access] 本人のメールアドレスにワンタイムコード。通らなければ何も見えない
+[Cloudflare Pages]  site/         … web/build + cloud/public(_headers・robots.txt)+ _data/(書き出した JSON)
+                    functions/    … /api/* を受け、URL を _data のファイルに対応させる(§13.4)
+```
+
+### 13.1 設定と鍵
+- `config.toml` の `[cloud]`:
+  - `enabled`: false のときは送り出さない。週次の処理の `publish` は `skipped` になる。
+  - `project`: Pages のプロジェクト名(`https://<project>.pages.dev`)。
+  - `access_team`: Access のチーム名。
+  - `access_aud`: Access のアプリの AUD タグ。
+  - `env_file`: 既定は `/Users/yone/StockPortal/.env`。
+- `.env` に `CLOUDFLARE_API_TOKEN`(権限: Account › Cloudflare Pages › Edit)と `CLOUDFLARE_ACCOUNT_ID` を置く。リポジトリには入れない。
+- Access のチームと AUD は秘密ではないので、Functions には `wrangler.toml` の `[vars]` で渡す。
+
+### 13.2 書き出し(`stockportal.batch.publish`)
+`python -m stockportal.batch.publish --as-of YYYY-MM-DD [--no-deploy] [--out DIR]`。
+
+- アプリを `httpx.ASGITransport` でプロセスの中から呼び、応答をそのまま `portal_data/cloud/_data/` に書く。接続元は 127.0.0.1 として、§9.1 の制限を通す。
+- 404 などの応答も本文ごと書き、状態は `errors.json` に残す。
+
+| ファイル | もとの URL |
+|---|---|
+| `theme.json` | `/api/theme` |
+| `market/{japan,segments}.{13w,26w,52w}.json` | `/api/market/japan?period=…` など |
+| `market/sectors.{period}.{scope}.json` | `/api/market/sectors?period=…&scope=…`(3 × 4 通り) |
+| `weekly/dates.json`・`weekly/evaluation.json` | `/api/weekly/dates`・`/api/weekly/evaluation` |
+| `weekly/{date}/{verdicts,picks,candidates}.json` | 基準日ごと(`dates` の全部) |
+| `weekly/{date}/detail/{コードの先頭2文字}.json` | `/api/weekly/{date}/verdicts/{code}` を `{code: 応答}` にまとめたもの |
+| `search.json` | 検索の材料。銘柄一覧(`_load_master` と同じ行)と、最新の基準日の対象銘柄 |
+| `status_base.json` | `/api/status` のうち時刻で変わらない部分と、週の最終営業日の一覧(§13.5) |
+
+- 根拠を先頭2文字で分けるのは、ファイルの数と大きさの釣り合いのため。1週あたり約90個、1つ約200KB(最大約600KB)になる。
+  - 1銘柄ずつにすると、Pages の上限(2万ファイル)に約20週で届く。
+  - 先頭1文字だと1つ約2MB になり、無料プランの CPU 時間(1回 10ms)を超えるおそれがある。
+- 2026-10-19 時点(20週)で約1,800ファイル、約275MB、書き出しは約40秒。週を重ねると1週あたり約90ファイル増えるので、上限には約200週で届く。届く前に、古い週の根拠を外すなどを決める。
+
+### 13.3 送り出し
+- `portal_data/cloud/project/` に `wrangler.toml`・`functions/`・`lib/`・`site/` をそろえ、`cloud/node_modules/.bin/wrangler pages deploy --branch main` を動かす。
+  - wrangler は、変わっていないファイルを送らない。そのため、毎週送るのは新しい週の分だけになる。
+- 成功したら `status/publish_<基準日>.json` を書く。週次の処理は、この印で成否を見る(§4.4)。
+- `deploy/install.sh` は、`[cloud] enabled` なら、入れ終わったあとに最新の基準日で一度送る(画面の変更をクラウドにも反映するため)。
+
+### 13.4 Pages Functions(`cloud/functions/api/[[path]].js`・`cloud/lib/portal.js`)
+- 受け付けるのは GET と HEAD だけ。応答には `X-Robots-Tag: noindex` と `Cache-Control: private, no-store` を付ける。
+- **Access の証明を、自分でも確かめる。** `Cf-Access-Jwt-Assertion` を、チームの公開鍵(`https://<team>.cloudflareaccess.com/cdn-cgi/access/certs`。1時間覚える)で RS256 として検証する。あわせて `aud`・`iss`・`exp` も確かめる。
+  - チームか AUD が設定されていないとき、または検証に失敗したときは 403 を返す。Access の設定を誤っても、中身が見えないようにするため。
+  - 手元の `wrangler pages dev` だけは、`ACCESS_DEV_BYPASS=1` かつ localhost のときに外せる。
+- 振り分け: `period`・`scope` は §5.2 と同じ許可リストで直す。`latest` と知らない基準日は `resolve_date` と同じ扱いにする(`no_such_date` と `latest`)。それ以外は `_data` のファイルを `env.ASSETS.fetch` で返す。
+  - Pages は、無いファイルに SPA の `index.html` を返す。そのため、`content-type` が JSON でなければ「無い」とみなす。
+- 検索は `api/search.py` を移植した。NFKC・大文字、4〜5文字の英数字ならコードの前方一致を先に、名前は出てくる位置の順、最大10件。
+
+### 13.5 「更新が遅れています」(`/api/status`)
+- クラウドでは、時刻だけがその場で変わる。`status_base.json` の週の最終営業日の一覧と今の時刻(日本時間)から、`expected_week_end` と `delayed` をその場で計算する。判定は §5.7 と同じ。
+- 週の一覧は、キャッシュの取引カレンダーに、J-Quants から取った約400日先までの分を足して作る。取れなければ、先の週は金曜を最終営業日とみなす。
+- Mac が止まって送り出しが来なければ、土曜 12:00 を過ぎた時点で「遅れ」と出る。
+
+### 13.6 確かめたこと(2026-10-19)
+- 実データで書き出した `_data` を `wrangler pages dev` で動かし、148 の URL の応答を Mac の API(8765)と比べた。全部一致した。比べたのは次のとおり。
+  - 市場概況: 期間と区分の全部の組み合わせ(不正な値を含む)
+  - 全基準日の判定表・推奨銘柄・テクニカルスクリーニング
+  - 根拠: 4つの基準日 × 8銘柄と、無いコード
+  - 検索: 13語
+  - 知らない URL
+- `cloud/test/portal.test.js`(`npm test`): 振り分け・基準日・根拠の取り出し・検索・遅れの判定・Access の検証(正しい証明・期限切れ・別の AUD・別のチーム・改ざん・HS256)。
