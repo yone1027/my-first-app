@@ -64,7 +64,7 @@ jquants_fins_per_minute = 60
 [cloud]
 # クラウド版(Cloudflare Pages。詳細設計書 §13)。true のときだけ、週次の処理の最後に送り出す
 enabled = false
-project = "stockportal"          # Pages のプロジェクト名(https://stockportal.pages.dev)
+project = "stockportal"          # Pages のプロジェクト名(https://stockportal-3i5.pages.dev)
 access_team = ""                 # Cloudflare Access のチーム名(<team>.cloudflareaccess.com の <team>)
 access_aud = ""                  # Access のアプリの AUD タグ。空なら、クラウドの API はすべて 403 を返す
 # env_file = "/Users/yone/StockPortal/.env"   # CLOUDFLARE_API_TOKEN と CLOUDFLARE_ACCOUNT_ID(既定は portal_data の隣)

@@ -1217,7 +1217,7 @@ jquants_fins_per_minute = 60
 ### 13.1 設定と鍵
 - `config.toml` の `[cloud]`:
   - `enabled`: false のときは送り出さない。週次の処理の `publish` は `skipped` になる。
-  - `project`: Pages のプロジェクト名(`https://<project>.pages.dev`)。
+  - `project`: Pages のプロジェクト名。URL は `https://<project>.pages.dev` だが、名前が使われていると末尾が付く(2026-10-19 は `stockportal` → `https://stockportal-3i5.pages.dev`)。
   - `access_team`: Access のチーム名。
   - `access_aud`: Access のアプリの AUD タグ。
   - `env_file`: 既定は `/Users/yone/StockPortal/.env`。
@@ -1274,3 +1274,13 @@ jquants_fins_per_minute = 60
   - 検索: 13語
   - 知らない URL
 - `cloud/test/portal.test.js`(`npm test`): 振り分け・基準日・根拠の取り出し・検索・遅れの判定・Access の検証(正しい証明・期限切れ・別の AUD・別のチーム・改ざん・HS256)。
+
+### 13.7 Cloudflare 側の設定(2026-10-19)
+- Pages のプロジェクトは `stockportal`。URL は `https://stockportal-3i5.pages.dev`。
+- Access: Pages の「Enable access policy」でアプリを作り、本番の `stockportal-3i5.pages.dev` を足した。
+  - プレビュー用の `*.stockportal-3i5.pages.dev` も守る。
+  - ポリシーは Allow・本人のメールアドレス1つ。ログインは One-time PIN。
+  - チームは `holy-rain-16aa`。AUD は `config.toml` の `[cloud]` に置いた。
+- 確かめたこと: ログインしていないときは、どの URL もログイン画面に移る(302)。
+  - 確かめた URL: トップ、`/api/*`、`/_data/*`、`robots.txt`、デプロイごとの URL
+  - 偽の `Cf-Access-Jwt-Assertion` を付けても同じだった。
