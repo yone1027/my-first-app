@@ -6,7 +6,7 @@
   import CardState from '$lib/components/CardState.svelte';
   import WeeklyTabs from '$lib/components/WeeklyTabs.svelte';
   import { api, ApiFailure, type Dates, type Evaluation, type Outcome } from '$lib/api';
-  import { dateWithWeekday, int, price, ratioPct, stamp } from '$lib/format';
+  import { dateWithWeekday, int, monthDayWeekday, price, ratioPct, stamp } from '$lib/format';
   import { OUTCOME_COLOR, outcomeText } from '$lib/labels';
 
   let dates = $state<Dates | null>(null);
@@ -36,9 +36,7 @@
     return `${shortDate(r.exit_date)} ${price(r.exit_price)}`;
   }
 
-  function shortDate(iso: string): string {
-    return dateWithWeekday(iso).slice(5);
-  }
+  const shortDate = monthDayWeekday;
 </script>
 
 <WeeklyTabs {dates} date="" tab="evaluation" counts={{ evaluation: data?.rows.length ?? null }} />

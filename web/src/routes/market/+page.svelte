@@ -10,7 +10,7 @@
   import Investors from '$lib/components/Investors.svelte';
   import PeriodPicker from '$lib/components/PeriodPicker.svelte';
   import { api, ApiFailure, type Japan } from '$lib/api';
-  import { cho, dec, pct, pt, rank, times, weekRange } from '$lib/format';
+  import { cho, dateShort, dec, pct, pt, rank, times, weekRange } from '$lib/format';
   import { INDICATOR_LABEL, SEGMENT_LABEL } from '$lib/labels';
   import { cssValue } from '$lib/theme';
 
@@ -193,7 +193,7 @@
               <span class="muted">期間で {ind.key === 'jgb10y' ? pct(ind.change, 3, true) + 'pt' : pct(ind.change, 1, true)}</span>
             </div>
             <Chart option={sparkline(ind.values)} height={70} />
-            <p class="muted">最終観測 {ind.last_obs ?? '—'}</p>
+            <p class="muted">最終観測 {dateShort(ind.last_obs)}</p>
           {/if}
         </div>
       {/each}

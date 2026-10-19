@@ -51,8 +51,22 @@ describe('書式(基本設計書 §4.9)', () => {
   });
 
   it('日付と週', () => {
-    expect(f.dateWithWeekday('2026-09-18')).toBe('2026-09-18(金)');
-    expect(f.weekRange('2026-09-14', '2026-09-18')).toBe('09/14〜09/18');
-    expect(f.stamp('2026-09-26T04:52:10+09:00')).toBe('2026-09-26 04:52');
+    const today = new Date('2026-10-20T12:00:00+09:00');
+    expect(f.dateWithWeekday('2026-09-18', today)).toBe('9/18(金)');
+    expect(f.dateWithWeekday('2025-09-18', today)).toBe('2025/9/18(木)');
+    expect(f.weekRange('2026-09-14', '2026-09-18')).toBe('9/14〜9/18');
+    expect(f.weekRange('2026-09-28', '2026-10-02')).toBe('9/28〜10/2');
+    expect(f.monthDay('2026-09-08')).toBe('9/8');
+    expect(f.monthDayWeekday('2026-09-18')).toBe('9/18(金)');
+    expect(f.stamp('2026-09-26T04:52:10+09:00', today)).toBe('9/26 04:52');
+  });
+
+  it('年をまたぐかもしれない日付は、ほかの年のときだけ年を付ける', () => {
+    const today = new Date('2026-10-20T12:00:00+09:00');
+    expect(f.dateShort('2026-09-08', today)).toBe('9/8');
+    expect(f.dateShort('2025-12-01', today)).toBe('2025/12/1');
+    expect(f.dateShort('週足', today)).toBe('週足');
+    expect(f.datesInText('高値 1,534(2026-10-09) / 安値 1,351(2025-09-04)', today)).toBe('高値 1,534(10/9) / 安値 1,351(2025/9/4)');
+    expect(f.datesInText(null, today)).toBe('');
   });
 });

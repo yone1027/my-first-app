@@ -9,7 +9,7 @@
   import WeeklyTabs from '$lib/components/WeeklyTabs.svelte';
   import { shownDate, wantedDate } from '$lib/weekly';
   import { api, ApiFailure, type Dates, type MethodResult, type VerdictDetail, type Verdicts } from '$lib/api';
-  import { oku } from '$lib/format';
+  import { dateShort, oku } from '$lib/format';
   import { SEGMENT_LABEL, tradingViewUrl, VERDICT_LABEL } from '$lib/labels';
   import { BUY_COUNTS, compare, DEFAULT_FILTERS, filter, PAGE_SIZE, sortKey, type Filters } from '$lib/verdicts';
 
@@ -231,11 +231,11 @@
                           </p>
                           {#each result.signals as sig}
                             <div class="signal">
-                              <div><strong>{sig.date}</strong> <Tag verdict={sig.direction} /> {sig.name}</div>
+                              <div><strong>{dateShort(sig.date)}</strong> <Tag verdict={sig.direction} /> {sig.name}</div>
                               <div class="muted">典拠: {sig.basis}{#if sig.provisional}(仮置き){/if}</div>
                               {#each sig.evidence as ev}
                                 <div class="muted">
-                                  {ev.label ?? ''}{#if ev.date} / {ev.date}{/if}
+                                  {ev.label ?? ''}{#if ev.date} / {dateShort(ev.date)}{/if}
                                   {#if ev.values}
                                     {#each Object.entries(ev.values) as [k, v]}<span class="kv">{k}={v}</span>{/each}
                                   {/if}

@@ -9,7 +9,7 @@
   import WeeklyTabs from '$lib/components/WeeklyTabs.svelte';
   import { shownDate, wantedDate } from '$lib/weekly';
   import { api, ApiFailure, type Candidates, type Dates } from '$lib/api';
-  import { dec, oku, pct, price } from '$lib/format';
+  import { datesInText, dec, oku, pct, price } from '$lib/format';
   import { tradingViewUrl } from '$lib/labels';
 
   const MOBILE_FIRST = 12;
@@ -102,7 +102,7 @@
               <td data-label="手法">{r.method}</td>
               <td data-label="水準">{r.level}</td>
               <td class="num" data-label="想定の買値">{price(r.entry, 1)}</td>
-              <td data-label="損切りの支持線">{r.stop_line}</td>
+              <td data-label="損切りの支持線">{datesInText(r.stop_line)}</td>
               <td class="num" data-label="損切り価格">{price(r.stop, 1)}</td>
               <td class="num" data-label="支持線の守った割合 / 触れた回数">{pct(r.hold_pct)} / {r.touches ?? '—'}</td>
               <td class="num" data-label="リスク">{pct(r.risk_pct, 2)}</td>

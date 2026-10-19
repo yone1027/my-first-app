@@ -8,7 +8,7 @@
   import WeeklyTabs from '$lib/components/WeeklyTabs.svelte';
   import { shownDate, wantedDate } from '$lib/weekly';
   import { api, ApiFailure, type Dates, type Outcome, type Pick, type Picks } from '$lib/api';
-  import { dateWithWeekday, dec, int, pct, price, ratioPct } from '$lib/format';
+  import { datesInText, dec, monthDay, monthDayWeekday, int, pct, price, ratioPct } from '$lib/format';
   import { OUTCOME_COLOR, outcomeText, tradingViewUrl } from '$lib/labels';
   import { loadCapital, saveCapital, shares } from '$lib/shares';
 
@@ -56,9 +56,9 @@
     target: p.target_md ?? p.target
   });
 
-  /** 「結果」の行。例: 勝ち(目標)10-15(木) 決済 +9.9% */
+  /** 「結果」の行。例: 勝ち(目標)10/15(木) 決済 +9.9% */
   function outcomeDetail(o: Outcome): string {
-    const day = (iso: string | null) => (iso ? dateWithWeekday(iso).slice(5) : '');
+    const day = (iso: string | null) => (iso ? monthDayWeekday(iso) : '');
     if (o.status === 'holding') return `${day(o.fill_date)} 約定 / ${day(o.last_date)} 時点 ${ratioPct(o.ret, 1, true)}(含み)`;
     if (o.status === 'win' || o.status === 'lose') return `${day(o.exit_date)} 決済 ${ratioPct(o.ret, 1, true)}`;
     if (o.status === 'unknown') return o.note ?? '';
@@ -69,8 +69,8 @@
 
   /** md の「注文の有効期間: …」の行から、見出しの重複を取る。 */
   function validityText(v: { start?: string; end?: string; text?: string }): string {
-    const text = v.text ?? (v.start && v.end ? `${v.start}〜${v.end}` : '');
-    return text.replace(/^注文の有効期間:\s*/, '');
+    const text = v.text ?? (v.start && v.end ? `${monthDay(v.start)}〜${monthDay(v.end)}` : '');
+    return datesInText(text).replace(/^注文の有効期間:\s*/, '');
   }
 
   /** Markdown の表を読むときに % を外して数にしているので、表示で付け直す(§7.2)。 */
@@ -101,7 +101,7 @@
     {/if}
     {#if data.header.validity_calendar}
       <p class="notice notice--warn">
-        取引カレンダーでは {data.header.validity_calendar.start}〜{data.header.validity_calendar.end} です。
+        取引カレンダーでは {monthDay(data.header.validity_calendar.start)}〜{monthDay(data.header.validity_calendar.end)} です。
         表示は分析の出力(md)に合わせています。
       </p>
     {/if}
@@ -112,7 +112,7 @@
     <div class="row" style="gap: 6px">
       {#each data.header.criteria_badges as badge}<span class="badge">{badge}</span>{/each}
     </div>
-    {#if data.header.model}<p class="muted">{data.header.model}</p>{/if}
+    {#if data.header.model}<p class="muted">{datesInText(data.header.model)}</p>{/if}
     <Cautions />
   </section>
 
