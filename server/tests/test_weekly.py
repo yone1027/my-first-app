@@ -78,8 +78,14 @@ def test_step_commands_use_the_right_python_and_folder(cfg):
     assert aggregate[0] != cfg.batch.python_existing  # ポータル側の Python
 
 
-def test_evaluate_runs_after_aggregate():
-    assert weekly.STEPS == ("candidates", "weekly_picks", "aggregate", "evaluate")
+def test_evaluate_runs_after_aggregate_and_publish_is_last():
+    assert weekly.STEPS == ("candidates", "weekly_picks", "aggregate", "evaluate", "publish")
+
+
+def test_publish_uses_the_portal_python(cfg):
+    publish, _ = weekly.step_command(cfg, "2026-09-25", "publish")
+    assert publish[1:] == ["-m", "stockportal.batch.publish", "--as-of", "2026-09-25"]
+    assert publish[0] != cfg.batch.python_existing
 
 
 def test_step_timeouts_come_from_the_config(cfg):
@@ -141,8 +147,30 @@ def test_steps_one_and_two_are_skipped_when_the_screen_is_not_ready(cfg, tmp_pat
     assert statuses["weekly_picks"] == "skipped"
     assert statuses["aggregate"] == "ok"
     assert statuses["evaluate"] == "ok"
+    assert statuses["publish"] == "skipped", "クラウド版を使わない設定では送り出さない"
     assert ran == ["aggregate", "evaluate"], "飛ばした手順は動かさない"
     assert record.screen_ready_at is None
+
+
+def test_publish_runs_when_the_cloud_is_enabled(cfg, tmp_path, monkeypatch):
+    import dataclasses
+
+    sandbox = dataclasses.replace(
+        cfg,
+        paths=dataclasses.replace(cfg.paths, portal_data=tmp_path, logs=tmp_path / "logs"),
+        cloud=dataclasses.replace(cfg.cloud, enabled=True),
+    )
+    ran: list[str] = []
+
+    def fake_step(_cfg, _as_of, name, record):
+        ran.append(name)
+        record.step(name).status = "ok"
+        return "ok"
+
+    monkeypatch.setattr(weekly, "run_step", fake_step)
+    weekly.run(sandbox, "2011-01-07", only="publish", wait=False)
+    assert ran == ["publish"]
+    assert weekly.step_succeeded(sandbox, "2011-01-07", "publish") is False  # 終わった印がまだ無い
 
 
 def test_success_needs_the_output_file_not_just_exit_zero(cfg):

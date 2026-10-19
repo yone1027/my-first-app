@@ -16,7 +16,7 @@ logs           = "/Users/yone/StockPortal/logs"
 python_existing = "/Users/yone/opt/anaconda3/bin/python3"   # 既存のスクリプトを呼ぶ Python
 wait_screen_max_minutes = 180
 wait_screen_poll_seconds = 60
-step_timeout_minutes = { candidates = 120, weekly_picks = 180, aggregate = 60, evaluate = 10 }
+step_timeout_minutes = { candidates = 120, weekly_picks = 180, aggregate = 60, evaluate = 10, publish = 30 }
 
 [aggregate]
 exclude_markets = ["0105", "0109"]   # 集計から外す市場区分。TOKYO PRO MARKET と ETF・REIT など(§6.4)
@@ -60,3 +60,11 @@ delayed_after = "SAT 12:00"     # これを過ぎても前の週のままなら�
 [api]
 jquants_per_minute = 100
 jquants_fins_per_minute = 60
+
+[cloud]
+# クラウド版(Cloudflare Pages。詳細設計書 §13)。true のときだけ、週次の処理の最後に送り出す
+enabled = false
+project = "stockportal"          # Pages のプロジェクト名(https://stockportal-3i5.pages.dev)
+access_team = ""                 # Cloudflare Access のチーム名(<team>.cloudflareaccess.com の <team>)
+access_aud = ""                  # Access のアプリの AUD タグ。空なら、クラウドの API はすべて 403 を返す
+# env_file = "/Users/yone/StockPortal/.env"   # CLOUDFLARE_API_TOKEN と CLOUDFLARE_ACCOUNT_ID(既定は portal_data の隣)

@@ -86,6 +86,17 @@ class ApiConfig:
 
 
 @dataclass(frozen=True)
+class CloudConfig:
+    """クラウド版(詳細設計書 §13)。``enabled`` のときだけ週次の処理で送り出す。"""
+
+    enabled: bool
+    project: str
+    access_team: str
+    access_aud: str
+    env_file: Path
+
+
+@dataclass(frozen=True)
 class Config:
     server: ServerConfig
     paths: PathsConfig
@@ -94,6 +105,9 @@ class Config:
     theme: dict[str, object]
     schedule: ScheduleConfig
     api: ApiConfig
+    cloud: CloudConfig = field(
+        default_factory=lambda: CloudConfig(enabled=False, project="stockportal", access_team="", access_aud="", env_file=Path())
+    )
     source: Path = field(compare=False, default=EXAMPLE_CONFIG)
 
 
@@ -134,6 +148,7 @@ def load(path: Path | None = None) -> Config:
     batch = data.get("batch", {})
     aggregate = data.get("aggregate", {})
     api = data.get("api", {})
+    cloud = data.get("cloud", {})
 
     return Config(
         server=ServerConfig(
@@ -165,6 +180,14 @@ def load(path: Path | None = None) -> Config:
         api=ApiConfig(
             jquants_per_minute=int(api.get("jquants_per_minute", 100)),
             jquants_fins_per_minute=int(api.get("jquants_fins_per_minute", 60)),
+        ),
+        cloud=CloudConfig(
+            enabled=bool(cloud.get("enabled", False)),
+            project=str(cloud.get("project", "stockportal")),
+            access_team=str(cloud.get("access_team", "")),
+            access_aud=str(cloud.get("access_aud", "")),
+            # 既定は portal_data の隣の .env(/Users/yone/StockPortal/.env)
+            env_file=Path(str(cloud.get("env_file", "") or Path(paths["portal_data"]).expanduser().parent / ".env")).expanduser(),
         ),
         source=path,
     )
