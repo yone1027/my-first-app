@@ -87,6 +87,7 @@ say "web で npm ci && npm run build します"
 (cd "$APP/web" && npm ci --silent && npm run build --silent)
 say "cloud で npm ci します(クラウド版に送る wrangler)"
 (cd "$APP/cloud" && npm ci --silent)
+NODE_DIR=$(dirname "$(command -v node)")
 rm -rf "$APP.old"
 
 # ---- 手順 5: launchd ----
@@ -96,6 +97,13 @@ say "launchd に登録します"
 # 消えるのを待ってから登録し、失敗したら数回やり直す。
 for label in $LABELS; do
   cp "$APP/deploy/launchd/$label.plist" "$HOME/Library/LaunchAgents/$label.plist"
+  # launchd の PATH には node(nvm で入れたもの)が無い。publish の wrangler が
+  # "env: node: No such file or directory" で止まった(2026-10-24・10-31)。
+  # いま使っている node の場所を、週次のジョブの PATH に書き込む。
+  if [[ $label == com.yone.stockportal.weekly ]]; then
+    /usr/libexec/PlistBuddy -c "Add :EnvironmentVariables:PATH string $NODE_DIR:/usr/bin:/bin:/usr/sbin:/sbin" \
+      "$HOME/Library/LaunchAgents/$label.plist"
+  fi
   launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
   for _ in {1..20}; do
     launchctl print "gui/$(id -u)/$label" >/dev/null 2>&1 || break
