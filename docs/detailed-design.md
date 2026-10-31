@@ -1,6 +1,6 @@
 # 株価ポータル 詳細設計書(草案)
 
-- 版: 草案 v0.13(2026-10-19)
+- 版: 草案 v0.14(2026-10-31)
 - 変更履歴
   - v0.1 作成
   - v0.2 スプリント1の確定作業(1)。技術スタック(§2)を確定し、この Mac の実測(§2.1)と採用しなかった案(§2.2)を追記。判定ラベルの正本を `verdicts.csv` に確定し実測値に差し替え(§7.1)、売買代金の集計範囲を確定(§6.4)、`period` の既定を `13w` に、業種の太字を上位3と下位3に(§5.2・§5.6)。§12.3 を「確認してほしいこと」から「決定・反映済み」に書き換えた
@@ -14,6 +14,7 @@
   - v0.9 実機に入れて見つかった2件を修正。`launchctl bootout` のあとは消えるのを待ってから `bootstrap` する(§10.3)。財務省の当月の CSV は毎回取る(§6.8。全期間版は前月までしか入っていない)
   - v0.11 選定基準の札に、本書どおりの基準(`chart_levels_only`・`min_risk_atrd`・`exclude_disc_in_hold`、上限 99 は札にしない)を追加(§7.2)
   - v0.13 クラウド版(Cloudflare Pages)を追加(§13)。週次の処理に手順5 `publish` を足した
+  - v0.14 launchd から動く `publish` が node を見つけられず失敗した(10/24・10/31)。`install.sh` が週次のジョブの PATH に node の場所を書き込むようにした(§13.3)
   - v0.12 株式分割の直後に J-Quants の `MktCap` が分割の比率を二重にかけた値になることへの備えを、PER の時価総額に足した(§6.6)。`to=` が同じキャッシュが複数あるときは範囲の長いものを読むようにした(§6.1)
 - もとにした文書
   - 基本設計書 [docs/basic-design.md](basic-design.md) v0.8
@@ -1249,6 +1250,7 @@ jquants_fins_per_minute = 60
 ### 13.3 送り出し
 - `portal_data/cloud/project/` に `wrangler.toml`・`functions/`・`lib/`・`site/` をそろえ、`cloud/node_modules/.bin/wrangler pages deploy --branch main` を動かす。
   - wrangler は、変わっていないファイルを送らない。そのため、毎週送るのは新しい週の分だけになる。
+  - wrangler は `#!/usr/bin/env node` で動く。launchd の PATH には nvm の node が無いので、`install.sh` が週次のジョブの plist に `PATH`(node の場所 + `/usr/bin:/bin:/usr/sbin:/sbin`)を書き込む。node の版を上げたら `install.sh` を動かし直す。
 - 成功したら `status/publish_<基準日>.json` を書く。週次の処理は、この印で成否を見る(§4.4)。
 - `deploy/install.sh` は、`[cloud] enabled` なら、入れ終わったあとに最新の基準日で一度送る(画面の変更をクラウドにも反映するため)。
 
